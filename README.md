@@ -372,6 +372,10 @@ means the profile adds no overrides (the field no longer shows a `VKD3D_CONFIG=d
 like a forced value, STEAMAC-8X). The Metal Performance HUD shows the Mac's drawable size, which can
 differ from the game's rendering resolution.
 
+For a game that freezes while opening the microphone, enter `STEAMAC_DISABLE_MIC=1` in
+its **Launch options** and restart Steam when prompted. The game's PulseAudio clients can
+still play sound. Remove the option and restart Steam to use voice input again.
+
 **Recommended: … — Apply** fetches a profile from the statistics service using this Mac's **My Mac**
 limits (GPU cores, RAM and performance cores no greater than this Mac's). Configurations are ranked
 by `(runs well + 0.5 × playable with issues) / all ratings`, then higher launch success and fewer

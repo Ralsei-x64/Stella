@@ -224,6 +224,10 @@ def profile_titles():
             continue
         words = []
         for word in profile["env"].split():
+            if word == "STEAMAC_DISABLE_MIC=1":
+                # libpulse adds this one client property alongside Steam's existing properties.
+                words.append("PULSE_PROP_stella_block_record=1")
+                continue
             name, value = word.split("=", 1)
             if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
                 raise ValueError("invalid profile environment name")

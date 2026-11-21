@@ -198,6 +198,18 @@ class TitleDefaultsTests(unittest.TestCase):
         self.run_script()
         self.assertIsNone(self.app_options("570"))
 
+    def test_disable_microphone_for_one_title(self):
+        key = (*titles.VDF_PATH, "1237970", "LaunchOptions")
+        previous = "PULSE_PROP=application.icon_name=game %command% --custom"
+        self.config.write_text(titles.vdf_set(self.config.read_text(), key, previous))
+        self.profiles({"1237970": {"env": "STEAMAC_DISABLE_MIC=1"}, "570": {"env": "PROTON_LOG=1"}})
+        self.run_script()
+        self.assertEqual(self.app_options("1237970"), "PULSE_PROP_stella_block_record=1 " + previous)
+        self.assertEqual(self.app_options("570"), "PROTON_LOG=1 %command%")
+        self.profiles({})
+        self.run_script()
+        self.assertEqual(self.app_options("1237970"), previous)
+
     def test_profile_user_edit_wins_after_change_and_removal(self):
         self.profiles({"570": {"env": "PROTON_LOG=1"}})
         self.run_script()
