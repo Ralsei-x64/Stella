@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Distributable FX Steam Launcher: a copy of work/out/FX Steam Launcher.app (build.sh / bundle.sh)
+# Distributable Stella: a copy of work/out/Stella.app (build.sh / bundle.sh)
 # re-signed with a Developer ID (hardened runtime, secure timestamp), notarized and stapled, inside
 # a signed, notarized and stapled DMG with an /Applications link:
-#   work/out/dist/FX Steam Launcher.app
-#   work/out/dist/FX-Steam-Launcher-<CFBundleShortVersionString>.dmg
+#   work/out/dist/Stella.app
+#   work/out/dist/Stella-<CFBundleShortVersionString>.dmg
 # The copy drops the dev-only SteamacBuildOut Info.plist key (this build tree's path) and gets the
 # in-app update configuration (SparkleUpdates): SUFeedURL, SUPublicEDKey, SUVerifyUpdateBeforeExtraction
 # and SURequireSignedFeed. Nested code is signed inside-out before the bundle: every loose Mach-O
@@ -28,9 +28,9 @@
 #                          1.9 shipped without them (no SENTRY_* set, only a "NOT uploaded" line), so
 #                          crashes in steamac-vm and libkrun stayed unsymbolicated: checked before
 #                          signing now, and every shipped Mach-O must pass sentry-cli debug-files check.
-#                          The dSYMs are kept as work/out/dist/FX-Steam-Launcher-<version>-dSYMs (later
+#                          The dSYMs are kept as work/out/dist/Stella-<version>-dSYMs (later
 #                          builds replace work/out/dSYMs).
-#   SPARKLE_FEED_URL       the appcast (default https://fxgl.github.io/steamac/appcast.xml)
+#   SPARKLE_FEED_URL       the appcast (default https://ralsei-x64.github.io/Stella/appcast.xml)
 #   SPARKLE_PUBLIC_KEY     its EdDSA public key (default: fxgl's release key below). A notarized build
 #                          requires its private half in the keychain (generate_keys -p prints the
 #                          keychain's public key), so appcast.sh can sign the release's updates. Sparkle's
@@ -41,7 +41,7 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
 OUT="$ROOT/work/out"
-NAME="FX Steam Launcher"
+NAME="Stella"
 SRC="$OUT/$NAME.app"
 DIST="$OUT/dist"
 ENTITLEMENTS="$HERE/steamac-vm.entitlements"
@@ -101,7 +101,7 @@ fi
 
 # In-app updates (SparkleUpdates): releases always carry the feed and its public key.
 SPARKLE_BIN="$HERE/.build/artifacts/sparkle/Sparkle/bin"
-feed=${SPARKLE_FEED_URL:-https://fxgl.github.io/steamac/appcast.xml}
+feed=${SPARKLE_FEED_URL:-https://ralsei-x64.github.io/Stella/appcast.xml}
 # fxgl's release key (public half; the private half exists only in the maintainer's keychain and its
 # offline backup). Installed copies accept only updates it signed: never change it for fxgl releases.
 ed_key=${SPARKLE_PUBLIC_KEY:-ML1BKHcTTwKlVSLtTdMvyk7Fhwg35VN1nUp+o4fezt8=}
@@ -113,9 +113,9 @@ not sign this release's updates; import the key backup with $SPARKLE_BIN/generat
 fi
 
 version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$SRC/Contents/Info.plist")
-DMG_NAME="FX-Steam-Launcher-$version.dmg"
+DMG_NAME="Stella-$version.dmg"
 mkdir -p "$DIST"
-GPL_SOURCES="$DIST/FX-Steam-Launcher-$version-gpl-sources.tar"
+GPL_SOURCES="$DIST/Stella-$version-gpl-sources.tar"
 "$ROOT/scripts/gpl-sources.sh"
 [[ -f $GPL_SOURCES ]] || die "source archive does not match app version $version"
 WORK="$DIST/.work.$$"
@@ -227,7 +227,7 @@ else
         [[ $(sentry-cli debug-files check "$f") == *"Usable: yes"* ]] || die "no usable debug information in $f"
         machos+=("$f")
     done < <(find "$DIST/$NAME.app/Contents" -type f \( -perm -u+x -o -name '*.dylib' \) -print0)
-    kept="$DIST/FX-Steam-Launcher-$version-dSYMs"
+    kept="$DIST/Stella-$version-dSYMs"
     rm -rf "$kept"
     cp -R "$OUT/dSYMs" "$kept"
     echo "=== uploading debug files of ${#machos[@]} Mach-O files + $kept to sentry.fxgam.es ($SENTRY_ORG/$SENTRY_PROJECT)"

@@ -1,4 +1,6 @@
-# steamac — Apple Silicon 上虚拟机中的 Valve 官方 ARM64 SteamOS（Steam Frame 映像）
+# Stella
+
+Stella 是 [FX Steam Launcher](https://github.com/fxgl/steamac) 的分支。全屏模式会使用当前显示器的原生分辨率，在 MacBook 上使用摄像头下方的显示区域。
 
 [English](README.md) · [Русский](README.ru.md) · **简体中文**
 
@@ -167,7 +169,7 @@ gamescope 会话中（游戏模式与桌面模式）：会话结束时（切换�
 - **立即捕获或释放鼠标（Ctrl+Cmd+G）** — 同 Ctrl+Cmd+G。
 
 这些与所有其他设置都在**设置**窗口（见下），域为
-`es.fxgam.steamac`（`defaults read es.fxgam.steamac`）；首次启动时从旧域 `dev.steamac.vm`
+`io.github.ralsei-x64.Stella`（`defaults read io.github.ralsei-x64.Stella`）；首次启动时从旧域 `es.fxgam.steamac`
 一次性拷贝。Metal 按应用标识存着色器缓存，改标识后游戏首次启动会重新编译着色器（一次“冷”启动）。
 `--auto-capture on|off` 覆盖单次启动的默认值。
 `--mouse tablet` — 绝对平板（gamescope 不理会，只适用于客户机其他合成器），
@@ -180,7 +182,7 @@ gamescope 会话中（游戏模式与桌面模式）：会话结束时（切换�
 SSH 一键开关：**设置 → 高级 → 启用 SSH**（或 `--ssh-port N` /
 `--no-ssh`）。每次启动时启动器传递 `steamac.ssh=0|1`：为 0 时 Mac 上根本不开端口
 （无转发的 gvproxy），initramfs 在 SteamOS 中屏蔽 sshd。开发版启动器（`work/out/steamac-vm`、`./run.sh`，端口 2222）默认开启，
-`FX Steam Launcher.app` 默认关闭（Info.plist 中 `SteamacReleaseDefaults` 键，由 `bundle.sh` 设置）。开启后，
+`Stella.app` 默认关闭（Info.plist 中 `SteamacReleaseDefaults` 键，由 `bundle.sh` 设置）。开启后，
 启动器为 `steamos` 用户生成密码（20 字符，SecRandomCopyBytes），
 按磁盘 GPT GUID 分别存于钥匙串，下次启动只把其 SHA-512 crypt 哈希传给客户机（“配置载荷”盘，`steamac.config=1`；客户机回复
 `config applied`）。设置中显示用户、密码（显示/拷贝）、现成命令
@@ -243,7 +245,7 @@ Moonlight 请求的分辨率暂时接管客户机显示尺寸（偶数且不超�
 
 ## 设置窗口
 
-**FX Steam Launcher → 设置…**（Cmd+, ——客户机持有键盘时也可用）。每项标注“立即生效”或“下次启动时生效”。
+**Stella → 设置…**（Cmd+, ——客户机持有键盘时也可用）。每项标注“立即生效”或“下次启动时生效”。
 若改了后一组中的任何项，底部出现 **重启虚拟机以应用**：
 客户机经电源键正常关机，监管器用新值重新启动虚拟机（**重启虚拟机**菜单项同理）。命令行标志优先于保存值，但仅对当次启动有效：字段旁显示“已被命令行覆盖
 （--cpus 6）”。
@@ -334,7 +336,7 @@ Dragon's Dogma 2 仍保留受 Venus 功能检查约束的默认值。所有权�
 
 ## 挂起
 
-**方式：** 设置 → 通用 → “关闭窗口时” → **挂起**——之后关闭窗口挂起虚拟机而非关机；或用 **FX Steam Launcher → 挂起**（Ctrl+Cmd+S，
+**方式：** 设置 → 通用 → “关闭窗口时” → **挂起**——之后关闭窗口挂起虚拟机而非关机；或用 **Stella → 挂起**（Ctrl+Cmd+S，
 客户机持有键盘时也可用）。`krun_pause`（libkrun 补丁 0016）停止全部 vCPU 与
 客户机音频，窗口隐藏，菜单栏出现 ⏸ 图标：“SteamOS 已挂起”、
 何时暂停、占用多少内存，**恢复**、**关闭 SteamOS**。挂起的虚拟机不占 CPU（~0%）；Mac 可睡眠。
@@ -540,10 +542,10 @@ Apple 在 [IOHIDDevice](https://github.com/apple-oss-distributions/IOHIDFamily/b
 `--control-fifo` 测试命令：`pad on`（无控制器的手柄，如 `--input-selftest` 所用）、
 `pad off`、`pad test`（A + 左摇杆）——均可带玩家编号（`pad on 2`；不带则为 1）——以及 `pad state`（客户机手柄、上次振动等级、客户机是否接管 HID 设备、已连接 DualSense 与 Steam Controller 及直通输入报告数）。
 
-## FX Steam Launcher.app
+## Stella.app
 
 `host/launcher/build.sh`（与 `./build.sh host`）除 `work/out/steamac-vm` 外还构建
-`work/out/FX Steam Launcher.app`（`host/launcher/bundle.sh`）：`es.fxgam.steamac`，`Contents/Frameworks` 中的库
+`work/out/Stella.app`（`host/launcher/bundle.sh`）：`io.github.ralsei-x64.Stella`，`Contents/Frameworks` 中的库
 （libkrun、libvirglrenderer、libMoltenVK、libepoxy）经 `@rpath`，`Contents/Resources` 中——gvproxy、`Image` 内核、`initramfs.cpio.gz`、`steamac-layer.img`、
 desync 与 Valve 磁盘创建 CA（许可证在 `Resources/licenses`）；图标：
 `host/launcher/AppIcon.icon`（Icon Composer 文档）由 `actool` 编译为 `Assets.car`
@@ -552,10 +554,10 @@ desync 与 Valve 磁盘创建 CA（许可证在 `Resources/licenses`）；图标
 `/Applications`。
 
 从访达启动（无参数）用包内的内核、initramfs 与层，SteamOS 磁盘取自 设置 → 高级 → 磁盘映像。默认：
-`~/Library/Application Support/es.fxgam.steamac/steamos.img`；否则用仓库的
+`~/Library/Application Support/io.github.ralsei-x64.Stella/steamos.img`；否则用仓库的
 `work/out/steamos.img`（包旁边或构建处）。无磁盘时，首次启动窗口提供**新建磁盘…**（见下节）或**使用已有磁盘…**
 （映像就地使用从不复制；`scripts/build-image.sh` 也可构建）。磁盘必须是带本布局分区的 SteamOS 原始 GPT 磁盘：选择 Steam Deck 恢复压缩包或 macOS 版 Steam 安装器时会被拒绝，已保存但不合格的磁盘在启动前即被拒绝（STEAMAC-7Y/7Z）。若客户机 initramfs 仍然失败（`steamac-init: FATAL …`），窗口显示错误而不是停在 3%。启动器无法打开或锁定的磁盘（权限、可移除卷访问）会提示检查 Finder → 显示简介 → 共享与权限以及隐私与安全性，并只记日志，不作为崩溃报告发送（STEAMAC-15）。此模式客户机控制台与启动器日志写入
-`~/Library/Logs/es.fxgam.steamac/steamac-vm.log`；SIGUSR1 帧转储亦然。`./run.sh`
+`~/Library/Logs/io.github.ralsei-x64.Stella/steamac-vm.log`；SIGUSR1 帧转储亦然。`./run.sh`
 与 `work/out/steamac-vm` 照常用（除非被标志覆盖，窗口设置对它们同样有效）。
 
 映像在外接盘上时，首次从访达启动 macOS 会问“FX Steam Launcher
@@ -568,19 +570,7 @@ desync 与 Valve 磁盘创建 CA（许可证在 `Resources/licenses`）；图标
 
 ## 卸载
 
-启动器不会给 Mac 的硬盘分区：SteamOS、游戏和存档都在一个磁盘映像文件里。完全删除：
-
-1. 退出 FX Steam Launcher（SteamOS 随之关机）。
-2. 删除设置 → 高级 → 磁盘映像中显示的磁盘映像（默认 `~/Library/Application Support/es.fxgam.steamac/steamos.img`，第 4 步会删除）。位于其他宗卷的磁盘旁边还可能留有 `steamos.provision.img`（首次启动完成前）和下载缓存 `steamos.img.cache`。
-3. 把“应用程序”中的 `FX Steam Launcher.app` 移到废纸篓。
-4. 在终端删除启动器的数据（磁盘、游戏统计、Moonlight 配对、下载与崩溃报告缓存、日志、已保存的问题报告）和设置：
-
-   ```
-   rm -rf ~/Library/Application\ Support/es.fxgam.steamac ~/Library/Caches/es.fxgam.steamac \
-          ~/Library/Logs/es.fxgam.steamac ~/Library/HTTPStorages/es.fxgam.steamac
-   defaults delete es.fxgam.steamac
-   ```
-5. 可选：在“钥匙串访问”中删除“FX Steam Launcher: SteamOS user steamos”密码（服务 `es.fxgam.steamac.guest-password`，每个磁盘一个）。
+退出 Stella，然后将 `Stella.app` 移至废纸篓。磁盘设置中选择的 SteamOS 映像保存游戏和存档。导入的映像也供 FX Steam Launcher 使用。
 
 ## 语言
 
@@ -630,7 +620,7 @@ rootfs 哈希不符时再顺序读取，以区分错误的稀疏区段元数据�
 2. 下载 `.raucb`（约 2 MB）；Security.framework 仅对照 Valve 固定 CA `CN=steamdeck-images`（`scripts/keys/steamdeck-images.pem`，SHA-256 指纹嵌入代码）校验其 CMS 签名，不用系统信任库。自研 squashfs 读取器（用锁定 zstd 发行版的 zstd，`fetch-zstd.sh`）解出 `manifest.raucm` 与 `rootfs.img.caibx`；检查
    `compatible=steamos-aarch64`、版本与槽大小。
 3. 官方 desync（`fetch-desync.sh`，锁定版本与 sha256）从 Valve 块存储（约 4.4 GB 数据）组装 10 GB `rootfs.img`；家目录卷上的磁盘用
-   `~/Library/Caches/es.fxgam.steamac` 中的 `desync/` 做块缓存，否则用磁盘旁 `<disk>.cache`
+   `~/Library/Caches/io.github.ralsei-x64.Stella` 中的 `desync/` 做块缓存，否则用磁盘旁 `<disk>.cache`
    （外接盘则内部不占缓存空间；成功后删除该目录）。故停止/创建（或 Ctrl+C 后重跑命令）可断点续传；之前某次在后续步骤失败而留下的完整 `<disk>.rootfs-tmp` 会先被删除（desync 不会复用它，保留只会让它占用两倍空间）。一个缓存一次只允许一次创建：第二次（另一窗口或 `--create-disk`）以“另一个 SteamOS 磁盘正在使用下载缓存 … 创建：请等待创建完成或取消该操作”停止（缓存目录中 `creation.lock` 的 `flock`），而非共享块缓存与临时文件。
 4. 稀疏磁盘文件：保护 MBR + GPT（主备，CRC32），名称、顺序、类型、大小与对齐与 `scripts/steps/40-disk.sh` 完全一致，PARTUUID 随机。一遍写入中，对 `rootfs.img` 哈希（sha256 须与签名 manifest 一致），16
    KiB 非零块写入 rootfs-A 与 rootfs-B；其余分区写零。全部检查通过后磁盘才以最终名称出现。已存在文件从不覆盖；exFAT
@@ -680,7 +670,7 @@ Venus 背后的宿主 Vulkan 驱动在**设置 → 高级 → Vulkan 驱动**选
 Metal 初始化前，启动器检查运行时编译器的模块缓存是否可写
 （`DARWIN_USER_CACHE_DIR/<bundle id>/com.apple.metalfe`，包括现有哈希目录和 `.pcm` 文件）。
 如果权限、ACL 或不可变文件标志阻止写入，启动器会记录失败路径，
-并把 Metal 缓存重定向到 `~/Library/Caches/es.fxgam.steamac/metal-compiler`。
+并把 Metal 缓存重定向到 `~/Library/Caches/io.github.ralsei-x64.Stella/metal-compiler`。
 它不会删除旧缓存或修改其权限。此功能使用 Metal 可选的缓存路径 SPI；
 若该接口不可用或新缓存同样不可写，会记入日志，着色器编译错误仍可上报。
 `work/out/steamac-vm --selftest-metal-cache` 在私有不可变缓存中复现
@@ -800,7 +790,7 @@ ARM64 Steam Deck 客户端（`steamdeck_stable`），登录显示屏幕二维码
 
 ## 分发（DMG）
 
-`host/launcher/dist.sh` 把构建好的 `work/out/FX Steam Launcher.app` 做成可下载的
+`host/launcher/dist.sh` 把构建好的 `work/out/Stella.app` 做成可下载的
 `work/out/dist/FX-Steam-Launcher-<version>.dmg`（应用 + `/Applications` 链接）。去掉 `SteamacBuildOut` 键（本构建树路径）的包拷贝用 Developer ID
 重签，hardened runtime，安全时间戳，由内向外：先签全部独立内嵌 Mach-O（`Frameworks/*.dylib`、`Resources` 中辅助程序、Sparkle 的 `Autoupdate`），
 再由深到浅签内嵌包（Sparkle 的 `Updater.app`、`Sparkle.framework`），最后用 `steamac-vm.entitlements` 签包（hypervisor、
@@ -875,7 +865,7 @@ SDK 根本不启动、不联网（已落盘报告保留在原处、不发送）�
   因此无需启用性能统计，“报告问题”也可包含游戏卡顿的诊断信息。
   宿主调度停顿（启动器自身数秒未运行）之后，检测器先观察一个新的心跳窗口，不把停顿算作客户机挂起。
 - SIGTERM/SIGINT/SIGHUP 退出的虚拟机（注销、`kill`、处理器安装前的 ^C）不是崩溃：只有日志行，无事件、无报告问题窗口。SIGPIPE 也不是（两进程都忽略：输出管道关闭——终端，或监管器被杀后的监管器 stderr 通道——只失败该次写；虚拟机进程转而记到
-  `~/Library/Logs/es.fxgam.steamac/steamac-vm.log` 或丢弃这些行，让客户机继续关完；STEAMAC-10）。SIGKILL 生成
+  `~/Library/Logs/io.github.ralsei-x64.Stella/steamac-vm.log` 或丢弃这些行，让客户机继续关完；STEAMAC-10）。SIGKILL 生成
   warning 级 `vm-killed` 事件，“VM process killed (SIGKILL — memory pressure or force quit)”：
   内核是否因内存杀它（jetsam，监管器 kqueue 的 `NOTE_EXIT_DETAIL`）、
   虚拟机内存与退出/峰值时虚拟机进程 footprint、宿主 `vm_stat` 数（free/compressed/wired、
@@ -891,7 +881,7 @@ SDK 根本不启动、不联网（已落盘报告保留在原处、不发送）�
   以及进程、Metal、Vulkan 分配与共享内存快照；这些计数相互重叠，不能相加。因磁盘被占用而被拒绝的第二个虚拟机以状态 4 退出：只有说明，不上报。
 - 每个事件附带启动器 stderr 最近约 200 行做面包屑（`[steamac-vm]`、
   `[mvk-*]`、libkrun/virglrenderer 警告、启动阶段）与标签：版本
-  （`es.fxgam.steamac@<CFBundleShortVersionString>+<git sha>`）、环境与 `build_kind` 标签：
+  （`io.github.ralsei-x64.Stella@<CFBundleShortVersionString>+<git sha>`）、环境与 `build_kind` 标签：
   `release` ——仅带公证的 `dist.sh` 构建（Info.plist `SteamacDistTeamID`，且运行代码签名确为该团队 Developer ID，用 `SecCodeCheckValidity` 检查），
   `source-build` ——其他 `.app`（`bundle.sh`、ad-hoc/重签拷贝、`dist.sh --no-notarize`），
   `development` ——包外 `work/out/steamac-vm`；macOS、Mac 机型、GPU、vCPU/内存、显示模式、libkrun / virglrenderer / MoltenVK 构建 UUID、`MVK_PATCH_REVISION`、内核版本、
@@ -980,7 +970,7 @@ download|skip|later|ok|releases|cancel|hide|install|quit`（`install` / `quit`�
 服务仍接受 v1（包括之前保存的会话），将其 `gfx`/`env` 存为 NULL。
 无效的 v2 赋值返回 HTTP 400；有效赋值按变量名排序，同名时最后一个生效。
 
-每份报告保存在本 Mac（`~/Library/Application Support/es.fxgam.steamac/game-stats.json`，
+每份报告保存在本 Mac（`~/Library/Application Support/io.github.ralsei-x64.Stella/game-stats.json`，
 每款游戏 20 次会话），并列于**设置 → 游戏**。启用**共享游戏统计**前，任何数据都不会离开 Mac：
 首款出现窗口的游戏运行后，启动器仅询问一次，询问窗口位于虚拟机窗口旁，不抢走键盘或捕获的鼠标
 （**共享** / **不共享**）；设置 → 游戏中的开关可随时更改此选择。开启时，已结束的会话与评价
@@ -1082,7 +1072,7 @@ Worker URL 填入 `host/launcher/Info.plist`（`SteamacGameStatsURL`）与 `docs
 并在访达打开其目录——所见即所发。
 
 报告发往 Sentry（`sentry.fxgam.es`，同一项目）做 User Feedback：邮箱、描述、本会话最新错误事件链接（如有）与文件附件，一个 envelope 直发 envelope 端口以便看到服务器应答。关闭崩溃报告也能用（显式用户动作：此时 SDK 与崩溃处理器不启动）。附件上限 20 MB（先裁日志旧部，再丢截图与 SteamOS 归档）；HTTP 413 应答则限额减半重发。发送后显示短报告 ID（事件 ID 前 8 字符）。发送失败目录保留在
-`~/Library/Logs/es.fxgam.steamac/reports/<date>-<ID>/`（`report.json` 含邮箱与描述加文件）；对话框提供**重试**与**在访达中显示**，目录也可邮件发送。
+`~/Library/Logs/io.github.ralsei-x64.Stella/reports/<date>-<ID>/`（`report.json` 含邮箱与描述加文件）；对话框提供**重试**与**在访达中显示**，目录也可邮件发送。
 
 原理：监管器始终管道两进程 stderr 并写入
 `/tmp/steamac-<pid>/launcher.log`（带时间戳，4 MB 轮转）；虚拟机进程把 hvc0

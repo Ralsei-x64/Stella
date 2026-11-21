@@ -66,10 +66,10 @@ final class VM {
 
         var rejection: String? {
             if isVirtualMachine {
-                return String(localized: "FX Steam Launcher cannot start SteamOS inside a macOS virtual machine. Nested virtualization is not supported. Run the launcher directly on your Mac, not inside a virtual machine.")
+                return String(localized: "Stella cannot start SteamOS inside a macOS virtual machine. Nested virtualization is not supported. Run the launcher directly on your Mac, not inside a virtual machine.")
             }
             if hypervisorSupported == 0 {
-                return String(localized: "Hardware virtualization is unavailable on this system. FX Steam Launcher needs the macOS Hypervisor framework to start SteamOS. Run the launcher directly on a supported Mac.")
+                return String(localized: "Hardware virtualization is unavailable on this system. Stella needs the macOS Hypervisor framework to start SteamOS. Run the launcher directly on a supported Mac.")
             }
             // Older macOS versions may omit a sysctl; absence alone is not a refusal.
             return nil

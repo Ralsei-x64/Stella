@@ -185,11 +185,11 @@ struct Options {
                       [--password PW] [--keep-cache] [--accept-eula]
            steamac-vm --ssh-password DISK
 
-    Without a flag, next-start values come from the Settings window (defaults domain es.fxgam.steamac):
+    Without a flag, next-start values come from the Settings window (defaults domain io.github.ralsei-x64.Stella):
     vCPUs, RAM, SSH port, network, sound, virtual pad, refresh, window size, physical size (DPI),
     fullscreen, perf stats, Steam client, Vulkan driver, Mac time zone and 12/24-hour format
     (Settings > General: adds steamac.tz= and steamac.clock24= unless --cmdline sets them).
-    Inside FX Steam Launcher.app, --kernel/--initrd/--disk default to the bundled Image, initramfs and
+    Inside Stella.app, --kernel/--initrd/--disk default to the bundled Image, initramfs and
     layer plus the disk image chosen in Settings > Advanced.
 
       --kernel PATH        raw arm64 Image (KRUN_KERNEL_FORMAT_RAW)
@@ -283,7 +283,7 @@ struct Options {
     Creating a SteamOS disk (no Docker; the same code as Settings > Advanced "Create New Disk…"):
       --create-disk PATH   download the signed SteamOS bundle of the branch (default: the saved setting,
                            else stable), verify it against Valve's CA, rebuild the rootfs with desync
-                           (resumable; cache in ~/Library/Caches/es.fxgam.steamac when PATH is on the home
+                           (resumable; cache in ~/Library/Caches/io.github.ralsei-x64.Stella when PATH is on the home
                            volume, else in PATH.cache), write a sparse GPT disk to PATH (never
                            overwritten) plus PATH's .provision.img payload, which the first boot uses to
                            format and fill the remaining partitions. One creation per cache at a time.
@@ -307,7 +307,7 @@ struct Options {
 
     Updates (Settings > General "Check for updates at startup", on; never in the dev launcher
     work/out/steamac-vm): the first boot asks api.github.com for the latest fxgl/steamac release, at
-    most every 6 h; menu FX Steam Launcher > Check for Updates… checks at any time. Test hooks:
+    most every 6 h; menu Stella > Check for Updates… checks at any time. Test hooks:
     STEAMAC_UPDATE_URL (release JSON, http(s):// or file://; also enables the dev launcher's startup
     check), STEAMAC_FAKE_VERSION (the version this launcher compares as)
 

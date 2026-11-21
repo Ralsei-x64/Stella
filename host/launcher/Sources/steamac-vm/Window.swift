@@ -3,6 +3,7 @@ import AppKit
 import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
+import IOKit
 import QuartzCore
 
 /// Routes key events to the guest before AppKit's key-equivalent/menu machinery (which would
@@ -220,9 +221,49 @@ final class WindowController: NSObject, NSWindowDelegate {
         refreshHostCursor()   // the black bars moved
     }
 
-    /// Guest size for the current window: content size in points times `pixelScale`.
     func guestSizeForWindow() -> (Int, Int) {
-        WindowController.guestSize(points: view.bounds.size, scale: pixelScale)
+        if window.styleMask.contains(.fullScreen), let screen = window.screen,
+           let pixels = Self.fullscreenPixels(on: screen, content: view.bounds.size) {
+            return Self.guestSize(points: pixels, scale: 1)
+        }
+        return Self.guestSize(points: view.bounds.size, scale: pixelScale)
+    }
+
+    /// Core Graphics reports native timings in display orientation, even for rotated panels.
+    /// A scaled Retina desktop can have more backing pixels than the physical LCD.
+    private static func fullscreenPixels(on screen: NSScreen, content: CGSize) -> CGSize? {
+        guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
+              screen.frame.width > 0, screen.frame.height > 0 else { return nil }
+        let id = number.uint32Value
+        let options = [kCGDisplayShowDuplicateLowResolutionModes as String: true] as CFDictionary
+        let modes = CGDisplayCopyAllDisplayModes(id, options) as? [CGDisplayMode] ?? []
+        guard let native = modes.first(where: { $0.ioFlags & UInt32(kDisplayModeNativeFlag) != 0 })
+                ?? CGDisplayCopyDisplayMode(id) else { return nil }
+
+        let width = CGFloat(native.pixelWidth)
+        var height = CGFloat(native.pixelHeight)
+        let safeHeight = screen.frame.height - screen.safeAreaInsets.top
+        guard width > 0, height > 0, safeHeight > 0 else { return nil }
+        if screen.safeAreaInsets.top > 0 {
+            // The panel advertises a second full-width mode below the camera housing.
+            // Its exact height avoids rounding the notch through a scaled desktop mode.
+            let estimate = height * safeHeight / screen.frame.height
+            let heights = modes.filter { $0.pixelWidth == native.pixelWidth && $0.pixelHeight < native.pixelHeight }
+                .map { CGFloat($0.pixelHeight) }
+            if let closest = heights.min(by: { abs($0 - estimate) < abs($1 - estimate) }),
+               abs(closest - estimate) <= height * 0.01 {
+                height = closest
+            } else {
+                height = estimate
+            }
+        }
+        // A full-screen tile may occupy only part of the display. AppKit can round
+        // the usable frame by one point during a full-screen transition.
+        let x = content.width >= screen.frame.width - 1 ? 1 : content.width / screen.frame.width
+        let y = content.height >= safeHeight - 1 ? 1 : content.height / safeHeight
+        let pixels = CGSize(width: width * x, height: height * y)
+        let limit = min(1, CGFloat(VM.maxDisplaySide & ~1) / max(1, pixels.width, pixels.height))
+        return CGSize(width: (pixels.width * limit).rounded(), height: (pixels.height * limit).rounded())
     }
 
     /// Guest display size for a content size in points at `scale` guest pixels per point: rounded
@@ -286,6 +327,9 @@ final class WindowController: NSObject, NSWindowDelegate {
         guestResizeWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + WindowController.guestResizeDebounce, execute: work)
     }
+
+    func windowDidChangeScreen(_ notification: Notification) { scheduleGuestResize() }
+    func windowDidChangeBackingProperties(_ notification: Notification) { scheduleGuestResize() }
 
     func windowDidEndLiveResize(_ notification: Notification) { scheduleGuestResize() }
 
@@ -1182,7 +1226,7 @@ enum MainMenu {
         appMenu.addItem(.separator())
         // Lifecycle.applicationShouldTerminate decides (shut down; asks first while suspended).
         // While the VM window has the keyboard, Cmd+Q goes to the guest like every key.
-        appMenu.addItem(NSMenuItem(title: String(localized: "Quit FX Steam Launcher"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        appMenu.addItem(NSMenuItem(title: String(localized: "Quit Stella"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         addEditAndWindowMenus(main)
         let viewItem = NSMenuItem()
         main.insertItem(viewItem, at: 2)
@@ -1211,7 +1255,7 @@ enum MainMenu {
         let appMenu = NSMenu()
         appItem.submenu = appMenu
         if let (action, target) = settings { appMenu.addItem(item("Settings…", action, target, key: ",")) }
-        appMenu.addItem(NSMenuItem(title: String(localized: "Quit FX Steam Launcher"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        appMenu.addItem(NSMenuItem(title: String(localized: "Quit Stella"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         addEditAndWindowMenus(main)
         NSApp.mainMenu = main
     }

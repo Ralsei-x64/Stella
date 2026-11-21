@@ -2,7 +2,7 @@
 # Build the steamac-vm launcher (release), sign it with the hypervisor entitlement and
 # install it as work/out/steamac-vm. Also fetches the pinned zstd decoder, ENet and nanors sources
 # (compiled in; the latter two for the Moonlight streaming host),
-# gvproxy and desync into work/out/host/bin and assembles work/out/FX Steam Launcher.app
+# gvproxy and desync into work/out/host/bin and assembles work/out/Stella.app
 # (bundle.sh; skipped with STEAMAC_NO_BUNDLE=1 or when the kernel/initramfs/layer images are
 # not built yet). Debug symbols for crash reports go to work/out/dSYMs (see dist.sh).
 #

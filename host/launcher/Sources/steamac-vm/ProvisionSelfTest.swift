@@ -111,7 +111,7 @@ enum ProvisionSelfTest {
             guard chmod(helper.path, 0o700) == 0 else { throw OptionError("chmod usable desync fixture") }
             check(try DiskCreator.requireDesync(bundleURL: bundle) == helper.path,
                   "usable bundled desync is found without developer-tree fallback")
-            check(AppBundle.isTranslocated(URL(fileURLWithPath: "/private/var/folders/test/AppTranslocation/id/d/FX Steam Launcher.app"))
+            check(AppBundle.isTranslocated(URL(fileURLWithPath: "/private/var/folders/test/AppTranslocation/id/d/Stella.app"))
                   && !AppBundle.isTranslocated(URL(fileURLWithPath: "/Applications/NotAppTranslocation.app")),
                   "translocation diagnostic uses an exact path component")
             try fm.removeItem(at: resources)
@@ -124,7 +124,7 @@ enum ProvisionSelfTest {
             check(absentBundle.diagnostics["bundle_presence"] == "missing"
                   && absentBundle.diagnostics["contents_presence"] == "missing"
                   && absentBundle.diagnostics["resources_presence"] == "missing"
-                  && absentBundle.localizedDescription.contains(String(localized: "Quit FX Steam Launcher completely before replacing or moving it, then open the copy in Applications.")),
+                  && absentBundle.localizedDescription.contains(String(localized: "Quit Stella completely before replacing or moving it, then open the copy in Applications.")),
                   "moved/deleted app preserves parent-directory evidence and tells the user to quit and reopen (STEAMAC-AE)")
         }
         // hvc0 is available before fx.progress (the initramfs can fail before the agent starts).

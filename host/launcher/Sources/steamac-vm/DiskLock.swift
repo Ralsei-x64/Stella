@@ -10,11 +10,11 @@ enum DiskLock {
     struct InUse: LocalizedError, CustomStringConvertible {
         let path: String
         var description: String {
-            "the SteamOS disk \(path) is in use by another FX Steam Launcher (or steamac-vm). "
+            "the SteamOS disk \(path) is in use by another Stella (or steamac-vm). "
                 + "Quit it first: two VMs writing one disk corrupt its file systems."
         }
         var errorDescription: String? {
-            String(localized: "the SteamOS disk \(path) is in use by another FX Steam Launcher (or steamac-vm). Quit it first: two VMs writing one disk corrupt its file systems.")
+            String(localized: "the SteamOS disk \(path) is in use by another Stella (or steamac-vm). Quit it first: two VMs writing one disk corrupt its file systems.")
         }
     }
 
@@ -22,10 +22,10 @@ enum DiskLock {
     struct AccessDenied: LocalizedError, CustomStringConvertible {
         let path: String
         var description: String {
-            "Cannot open or lock the SteamOS disk \(path): permission denied. In Finder > Get Info, check that you have Read & Write access to the file and its volume. In System Settings > Privacy & Security, allow FX Steam Launcher access to removable volumes (or Full Disk Access if needed), then try again. You can also move the disk to a writable local folder and select it again in Settings."
+            "Cannot open or lock the SteamOS disk \(path): permission denied. In Finder > Get Info, check that you have Read & Write access to the file and its volume. In System Settings > Privacy & Security, allow Stella access to removable volumes (or Full Disk Access if needed), then try again. You can also move the disk to a writable local folder and select it again in Settings."
         }
         var errorDescription: String? {
-            String(localized: "Cannot open or lock the SteamOS disk \(path): permission denied. In Finder > Get Info, check that you have Read & Write access to the file and its volume. In System Settings > Privacy & Security, allow FX Steam Launcher access to removable volumes (or Full Disk Access if needed), then try again. You can also move the disk to a writable local folder and select it again in Settings.")
+            String(localized: "Cannot open or lock the SteamOS disk \(path): permission denied. In Finder > Get Info, check that you have Read & Write access to the file and its volume. In System Settings > Privacy & Security, allow Stella access to removable volumes (or Full Disk Access if needed), then try again. You can also move the disk to a writable local folder and select it again in Settings.")
         }
     }
 

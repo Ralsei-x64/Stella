@@ -1,4 +1,6 @@
-# steamac — официальный ARM64 SteamOS (образ Steam Frame) в ВМ на Apple Silicon
+# Stella
+
+Stella — форк [FX Steam Launcher](https://github.com/fxgl/steamac). В полноэкранном режиме разрешение следует за монитором, на MacBook используется область под камерой.
 
 [English](README.md) · **Русский** · [简体中文](README.zh.md)
 
@@ -198,9 +200,9 @@ heartbeat не ждётся, пока агент новой сессии его 
 - **Автоматически захватывать мышь в играх** — значение по умолчанию для всех игр;
 - **Захватить / освободить мышь сейчас (Ctrl+Cmd+G)** — то же, что Ctrl+Cmd+G.
 
-Эти и все остальные настройки — в окне **Настройки** (см. ниже), домен `es.fxgam.steamac`
-(`defaults read es.fxgam.steamac`); при первом запуске они один раз копируются из прежнего домена
-`dev.steamac.vm`. Metal хранит кеш шейдеров по идентификатору приложения, поэтому после смены
+Эти и все остальные настройки — в окне **Настройки** (см. ниже), домен `io.github.ralsei-x64.Stella`
+(`defaults read io.github.ralsei-x64.Stella`); при первом запуске они один раз копируются из прежнего домена
+`es.fxgam.steamac`. Metal хранит кеш шейдеров по идентификатору приложения, поэтому после смены
 идентификатора первый запуск игр снова компилирует шейдеры (один «холодный» запуск).
 `--auto-capture on|off` переопределяет значение по умолчанию на один запуск.
 `--mouse tablet` — абсолютный планшет (gamescope его не принимает, так что только для других
@@ -213,7 +215,7 @@ SSH включается и выключается одним переключа
 `--ssh-port N` / `--no-ssh`). Лаунчер на каждой загрузке передаёт `steamac.ssh=0|1`: при 0 порт на
 Mac не открывается вовсе (gvproxy без проброса), а initramfs маскирует sshd в SteamOS. По умолчанию
 SSH включён у dev-лаунчера (`work/out/steamac-vm`, `./run.sh`, порт 2222) и выключен в
-`FX Steam Launcher.app` (ключ `SteamacReleaseDefaults` в Info.plist, ставит `bundle.sh`). При
+`Stella.app` (ключ `SteamacReleaseDefaults` в Info.plist, ставит `bundle.sh`). При
 включении лаунчер генерирует пароль пользователя `steamos` (20 символов, SecRandomCopyBytes),
 хранит его в связке ключей отдельно для каждого диска (по GUID его GPT) и на следующей загрузке
 передаёт гостю только хеш SHA-512 crypt (диск-«config payload», `steamac.config=1`; гость отвечает
@@ -296,7 +298,7 @@ Mac слушает TCP **47984, 47989**, пока сервер включён, �
 
 ## Окно настроек
 
-**FX Steam Launcher → Настройки…** (Cmd+, — работает и когда клавиатура у гостя). У каждого поля
+**Stella → Настройки…** (Cmd+, — работает и когда клавиатура у гостя). У каждого поля
 подпись «применяется сейчас» (применяется сразу) или «применяется при следующем запуске» (при следующем запуске ВМ).
 Если изменено что-то из второй группы, внизу появляется **Перезапустить ВМ для применения**: гость штатно
 выключается кнопкой питания, супервизор запускает ВМ заново уже с новыми значениями (то же —
@@ -407,7 +409,7 @@ Proton по его маркеру `.steamac-dxmt`, а не по разрешен
 ## Приостановка (Suspend)
 
 **Как:** Настройки → Основные → «При закрытии окна» → **Приостановить** — тогда закрытие окна
-приостанавливает ВМ вместо выключения; или меню **FX Steam Launcher → Приостановить** (Ctrl+Cmd+S,
+приостанавливает ВМ вместо выключения; или меню **Stella → Приостановить** (Ctrl+Cmd+S,
 работает и когда клавиатура у гостя). `krun_pause` (патч libkrun 0016) останавливает все vCPU и
 звук гостя, окно прячется, в строке меню появляется значок ⏸: «SteamOS приостановлена», с какого
 времени и сколько памяти занято, **Возобновить**, **Выключить SteamOS**. Приостановленная ВМ не тратит
@@ -776,10 +778,10 @@ Controller пробрасывается любому свободному дос
 и `pad state` (pad гостя, последний уровень вибрации, принимает ли гость HID-устройства,
 подключённые DualSense и Steam Controller и число проброшенных входных отчётов).
 
-## FX Steam Launcher.app
+## Stella.app
 
 `host/launcher/build.sh` (и `./build.sh host`) кроме `work/out/steamac-vm` собирает
-`work/out/FX Steam Launcher.app` (`host/launcher/bundle.sh`): `es.fxgam.steamac`, библиотеки
+`work/out/Stella.app` (`host/launcher/bundle.sh`): `io.github.ralsei-x64.Stella`, библиотеки
 (libkrun, libvirglrenderer, libMoltenVK, libepoxy) в `Contents/Frameworks` через `@rpath`,
 в `Contents/Resources` — gvproxy, ядро `Image`, `initramfs.cpio.gz`, `steamac-layer.img`, desync и
 CA Valve для создания диска (лицензии — в `Resources/licenses`), иконка: `host/launcher/AppIcon.icon`
@@ -790,7 +792,7 @@ CA Valve для создания диска (лицензии — в `Resources/
 
 Запуск из Finder (без аргументов) берёт ядро, initramfs и слой из бандла, а диск SteamOS — из
 Настройки → Дополнительно → Образ диска. По умолчанию:
-`~/Library/Application Support/es.fxgam.steamac/steamos.img`, иначе `work/out/steamos.img`
+`~/Library/Application Support/io.github.ralsei-x64.Stella/steamos.img`, иначе `work/out/steamos.img`
 репозитория (рядом с бандлом или там, где он был собран). Если диска нет — окно первого запуска:
 **Новый диск…** (см. следующий раздел) или **Выбрать диск…** (образ используется на
 месте и никогда не копируется; собирается и `scripts/build-image.sh`). Диск должен быть сырым GPT-диском
@@ -800,7 +802,7 @@ SteamOS с разделами этой разметки: архив восста
 открыть или заблокировать (права, доступ к съёмным томам), лаунчер объясняет, что проверить в Finder →
 Свойства → Общий доступ и права доступа и в «Конфиденциальность и безопасность», и пишет это в лог без
 отчёта о сбое (STEAMAC-15). Консоль гостя и лог лаунчера в этом режиме
-пишутся в `~/Library/Logs/es.fxgam.steamac/steamac-vm.log`, SIGUSR1-дампы кадра — туда же.
+пишутся в `~/Library/Logs/io.github.ralsei-x64.Stella/steamac-vm.log`, SIGUSR1-дампы кадра — туда же.
 `./run.sh` и `work/out/steamac-vm` работают как раньше (настройки из окна действуют и для них,
 если не заданы флагами).
 
@@ -823,25 +825,7 @@ Launcher хочет получить доступ к файлам на съём�
 
 ## Удаление
 
-Лаунчер не создаёт разделов на диске Mac: SteamOS, игры и сохранения хранятся в одном файле образа
-диска. Чтобы удалить всё:
-
-1. Закройте FX Steam Launcher (SteamOS выключится вместе с ним).
-2. Удалите образ диска, указанный в «Настройки → Дополнительно → Образ диска» (по умолчанию
-   `~/Library/Application Support/es.fxgam.steamac/steamos.img`, его удалит шаг 4). Рядом с диском на
-   другом томе могут остаться `steamos.provision.img` (до завершения первого запуска) и кеш скачивания
-   `steamos.img.cache`.
-3. Перенесите `FX Steam Launcher.app` из «Программ» в Корзину.
-4. Удалите данные лаунчера (диск, статистику игр, сопряжение Moonlight, кеши скачивания и отчётов о
-   сбоях, журналы, сохранённые отчёты о проблемах) и настройки в Терминале:
-
-   ```
-   rm -rf ~/Library/Application\ Support/es.fxgam.steamac ~/Library/Caches/es.fxgam.steamac \
-          ~/Library/Logs/es.fxgam.steamac ~/Library/HTTPStorages/es.fxgam.steamac
-   defaults delete es.fxgam.steamac
-   ```
-5. При желании удалите в «Связке ключей» пароли «FX Steam Launcher: SteamOS user steamos» (служба
-   `es.fxgam.steamac.guest-password`, по одному на диск).
+Закройте Stella и переместите `Stella.app` в Корзину. Образ в настройках диска содержит игры и сохранения. Импортированный образ также используется FX Steam Launcher.
 
 ## Языки
 
@@ -950,7 +934,7 @@ translocation, наличие и права desync, результат пров�
    проверяются `compatible=steamos-aarch64`, версия и размер слота.
 3. Официальный desync (`fetch-desync.sh`, версия и sha256 закреплены) собирает 10-гигабайтный
    `rootfs.img` из хранилищ чанков Valve (~4,4 ГБ данных); кеш чанков — `desync/` в
-   `~/Library/Caches/es.fxgam.steamac` для диска на томе домашней папки, иначе в `<диск>.cache`
+   `~/Library/Caches/io.github.ralsei-x64.Stella` для диска на томе домашней папки, иначе в `<диск>.cache`
    рядом с диском (внешнему диску тогда не нужно место на внутреннем; после успеха папка удаляется).
    Поэтому Остановить/Создать (или повтор команды после Ctrl+C) продолжает с места остановки; готовый
    `<диск>.rootfs-tmp`, оставшийся от попытки, сорвавшейся позже, сначала удаляется (desync его не
@@ -1021,7 +1005,7 @@ Vulkan-драйвер хоста за Venus выбирается в **Настр
 До инициализации Metal лаунчер проверяет доступность для записи кеша модулей компилятора
 (`DARWIN_USER_CACHE_DIR/<bundle id>/com.apple.metalfe`, включая папки хешей и существующие `.pcm`).
 Если запись блокируют права, ACL или флаг immutable, лаунчер записывает проблемный путь в журнал
-и перенаправляет Metal в `~/Library/Caches/es.fxgam.steamac/metal-compiler`.
+и перенаправляет Metal в `~/Library/Caches/io.github.ralsei-x64.Stella/metal-compiler`.
 Старый кеш не удаляется, его права не меняются. Используется необязательный SPI Metal для пути кеша;
 если он недоступен или новый кеш тоже недоступен для записи, это фиксируется в журнале, а ошибки
 компиляции шейдеров по-прежнему отправляются в отчётах. `work/out/steamac-vm --selftest-metal-cache`
@@ -1291,7 +1275,7 @@ QR-код на экране (Steam Mobile App → Steam Guard → сканиро
 
 ## Дистрибутив (DMG)
 
-`host/launcher/dist.sh` делает из собранного `work/out/FX Steam Launcher.app` то, что выкладывается
+`host/launcher/dist.sh` делает из собранного `work/out/Stella.app` то, что выкладывается
 для скачивания: `work/out/dist/FX-Steam-Launcher-<версия>.dmg` (приложение + ссылка на
 `/Applications`). Копия бандла без ключа `SteamacBuildOut` (путь к этому дереву сборки)
 переподписывается Developer ID с hardened runtime и secure timestamp изнутри наружу: сначала все
@@ -1410,7 +1394,7 @@ http://127.0.0.1:8765`, и `python3 -m http.server 8765` в `work/out/updates-lo
   падение: только строка в логе, без события и без окна Сообщить о проблеме. SIGPIPE — тоже (оба
   процесса его игнорируют: закрытый канал вывода — терминал или канал stderr супервизора после того,
   как супервизор убит, — только даёт ошибку записи; процесс ВМ тогда пишет лог в
-  `~/Library/Logs/es.fxgam.steamac/steamac-vm.log` или отбрасывает строки и даёт гостю довыключиться;
+  `~/Library/Logs/io.github.ralsei-x64.Stella/steamac-vm.log` или отбрасывает строки и даёт гостю довыключиться;
   STEAMAC-10). SIGKILL — событие
   `vm-killed` уровня warning «VM process killed (SIGKILL — memory pressure or force quit)»: убило ли
   ядро за память (jetsam, `NOTE_EXIT_DETAIL` из kqueue супервизора), память ВМ и footprint процесса ВМ
@@ -1429,7 +1413,7 @@ http://127.0.0.1:8765`, и `python3 -m http.server 8765` в `work/out/updates-lo
   нельзя складывать. Вторая ВМ, отклонённая из-за занятого диска, выходит с кодом 4: объяснение, без отчёта.
 - в каждом событии — последние ~200 строк stderr лаунчера как breadcrumbs (строки `[steamac-vm]`,
   `[mvk-*]`, предупреждения libkrun/virglrenderer, этапы загрузки) и теги: версия
-  (`es.fxgam.steamac@<CFBundleShortVersionString>+<git sha>`), окружение и тег `build_kind`:
+  (`io.github.ralsei-x64.Stella@<CFBundleShortVersionString>+<git sha>`), окружение и тег `build_kind`:
   `release` — только сборка `dist.sh` с нотаризацией (Info.plist `SteamacDistTeamID`, и подпись
   работающего кода — Developer ID этой команды, проверка `SecCodeCheckValidity`), `source-build` —
   любой другой `.app` (`bundle.sh`, ad-hoc/переподписанные копии, `dist.sh --no-notarize`),
@@ -1555,7 +1539,7 @@ P-ядер и всех ядер, ядра GPU, ОЗУ, macOS), ВМ (vCPU, ОЗ�
 Сервис по-прежнему принимает v1 (включая ранее сохранённые сеансы), записывая `gfx`/`env` как NULL.
 Неверные присваивания v2 отклоняются с HTTP 400; верные сортируются по имени, при повторе побеждает последнее.
 
-Каждый отчёт хранится на этом Mac (`~/Library/Application Support/es.fxgam.steamac/game-stats.json`,
+Каждый отчёт хранится на этом Mac (`~/Library/Application Support/io.github.ralsei-x64.Stella/game-stats.json`,
 20 сеансов на игру) и показан в **Настройки → Игры**. Ничего не покидает Mac, пока не включено
 **Делиться статистикой игр**: после первой игры с окном лаунчер спрашивает один раз, в окне рядом
 с окном ВМ, не забирая клавиатуру или захваченную мышь (**Делиться** / **Не делиться**);
@@ -1696,7 +1680,7 @@ libkrun/virglrenderer/MoltenVK, ядро, BUILD_ID SteamOS, релиз слоя,
 (сначала обрезаются старые части логов, потом выбрасываются скриншот и архив SteamOS); на ответ
 HTTP 413 лимит уменьшается вдвое и отчёт отправляется снова. После отправки показывается короткий
 ID отчёта (первые 8 знаков ID события). Не удалось отправить — папка остаётся в
-`~/Library/Logs/es.fxgam.steamac/reports/<дата>-<ID>/` (`report.json` с email и описанием плюс
+`~/Library/Logs/io.github.ralsei-x64.Stella/reports/<дата>-<ID>/` (`report.json` с email и описанием плюс
 файлы); в диалоге **Повторить попытку** и **Показать в Finder**, папку можно прислать почтой.
 
 Как это устроено: супервизор всегда пропускает stderr обоих процессов через канал и пишет его в

@@ -107,7 +107,8 @@ enum Provision {
 enum GuestPassword {
     enum State: String { case pending, applied }
 
-    private static let service = LauncherSettings.defaultDomain + ".guest-password"
+    // The credential belongs to the shared SteamOS disk, so both launchers use its original service.
+    private static let service = LauncherSettings.legacyDomain + ".guest-password"
     static let user = "steamos"
     /// No 0/O, 1/l/I: readable when typed from the Settings window.
     private static let alphabet = Array("abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789")
@@ -162,7 +163,7 @@ enum GuestPassword {
         var q = query(disk)
         q[kSecValueData as String] = Data(pw.utf8)
         q[kSecAttrGeneric as String] = Data(State.pending.rawValue.utf8)
-        q[kSecAttrLabel as String] = String(localized: "FX Steam Launcher: SteamOS user steamos (disk \(disk))")
+        q[kSecAttrLabel as String] = String(localized: "Stella: SteamOS user steamos (disk \(disk))")
         let status = SecItemAdd(q as CFDictionary, nil)
         guard status == errSecSuccess else {
             let detail = SecCopyErrorMessageString(status, nil) as String? ?? "error \(status)"

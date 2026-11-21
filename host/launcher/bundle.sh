@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assemble work/out/FX Steam Launcher.app (called by build.sh with the freshly built binary):
+# Assemble work/out/Stella.app (called by build.sh with the freshly built binary):
 #   Contents/MacOS/steamac-vm           launcher, rpath @executable_path/../Frameworks only
 #   Contents/Frameworks/*.dylib         libkrun, libvirglrenderer, libMoltenVK, libvulkan_kosmickrisp
 #                                       (when built: host/kosmickrisp, macOS 26+), libwmtr_host
@@ -23,7 +23,7 @@ ROOT=$(cd "$HERE/../.." && pwd)
 OUT="$ROOT/work/out"
 KRUN_PREFIX="${KRUN_PREFIX:-$OUT/host}"
 BIN="${1:?usage: bundle.sh <steamac-vm binary>}"
-NAME="FX Steam Launcher"
+NAME="Stella"
 APP="$OUT/$NAME.app"
 STAGE="$OUT/.bundle.$$"
 TMP="$STAGE/$NAME.app"

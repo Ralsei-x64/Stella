@@ -4,7 +4,7 @@ import Foundation
 import Security
 import UniformTypeIdentifiers
 
-/// Running inside "FX Steam Launcher.app" (build.sh / bundle.sh): the kernel, initramfs, layer
+/// Running inside "Stella.app" (build.sh / bundle.sh): the kernel, initramfs, layer
 /// disk, gvproxy, desync and Valve's RAUC CA are bundled in Contents/Resources; the SteamOS disk
 /// comes from Settings > Advanced "Disk image", else the default locations below. Never copied
 /// anywhere: the user picks an existing image or creates a new one (DiskCreator).
@@ -25,13 +25,13 @@ enum AppBundle {
     struct InstallationFailure: LocalizedError, CustomStringConvertible {
         let diagnostics: [String: String]
         var description: String {
-            "The FX Steam Launcher installation is incomplete: its SteamOS download tool (desync) is missing, unreadable or not executable. Download the latest DMG again and copy FX Steam Launcher to Applications, replacing the old copy. Check security software for a blocked or removed desync file, then try again. " + Self.reopenGuidance
+            "The Stella installation is incomplete: its SteamOS download tool (desync) is missing, unreadable or not executable. Download the latest DMG again and copy Stella to Applications, replacing the old copy. Check security software for a blocked or removed desync file, then try again. " + Self.reopenGuidance
         }
         var errorDescription: String? {
-            String(localized: "The FX Steam Launcher installation is incomplete: its SteamOS download tool (desync) is missing, unreadable or not executable. Download the latest DMG again and copy FX Steam Launcher to Applications, replacing the old copy. Check security software for a blocked or removed desync file, then try again.")
-                + " " + String(localized: "Quit FX Steam Launcher completely before replacing or moving it, then open the copy in Applications.")
+            String(localized: "The Stella installation is incomplete: its SteamOS download tool (desync) is missing, unreadable or not executable. Download the latest DMG again and copy Stella to Applications, replacing the old copy. Check security software for a blocked or removed desync file, then try again.")
+                + " " + String(localized: "Quit Stella completely before replacing or moving it, then open the copy in Applications.")
         }
-        private static let reopenGuidance = "Quit FX Steam Launcher completely before replacing or moving it, then open the copy in Applications."
+        private static let reopenGuidance = "Quit Stella completely before replacing or moving it, then open the copy in Applications."
     }
 
     struct ResourceStatus {
@@ -238,7 +238,7 @@ enum AppBundle {
         dup2(fd, STDERR_FILENO)
         close(fd)
         let stamp = ISO8601DateFormatter().string(from: Date())
-        log("---- \(stamp) FX Steam Launcher started (pid \(getpid()), \(Bundle.main.bundlePath))")
+        log("---- \(stamp) Stella started (pid \(getpid()), \(Bundle.main.bundlePath))")
     }
 
     /// A launch error the user must see: an alert when launched from Finder / `open` (the log is not
@@ -299,7 +299,7 @@ enum FirstRun {
         let alert = NSAlert()
         alert.messageText = String(localized: "No SteamOS disk image")
         let looked = AppBundle.defaultDiskCandidates().map { "• " + ($0 as NSString).abbreviatingWithTildeInPath }
-        var info = String(localized: "FX Steam Launcher needs a SteamOS disk image (steamos.img, ~87 GB sparse).\n\n")
+        var info = String(localized: "Stella needs a SteamOS disk image (steamos.img, ~87 GB sparse).\n\n")
         if !settings.diskImage.isEmpty {
             let path = (settings.diskImage as NSString).abbreviatingWithTildeInPath
             info += path + "\n\n" + AppBundle.invalidDiskMessage + "\n\n"

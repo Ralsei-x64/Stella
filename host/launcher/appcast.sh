@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Publish work/out/dist/FX-Steam-Launcher-<version>.dmg (dist.sh) to the in-app update feed
-# (SparkleUpdates): docs/appcast.xml, served as https://fxgl.github.io/steamac/appcast.xml once
+# Publish work/out/dist/Stella-<version>.dmg (dist.sh) to the in-app update feed
+# (SparkleUpdates): docs/appcast.xml, served as https://ralsei-x64.github.io/Stella/appcast.xml once
 # committed and pushed (GitHub Pages).
 #
 #   host/launcher/appcast.sh [--local URL] [generate_appcast options, e.g. --phased-rollout-interval 86400]
@@ -29,8 +29,8 @@ ROOT=$(cd "$HERE/../.." && pwd)
 OUT="$ROOT/work/out"
 DIST="$OUT/dist"
 SPARKLE_BIN="$HERE/.build/artifacts/sparkle/Sparkle/bin"
-REPO=fxgl/steamac
-SITE=https://fxgl.github.io/steamac/
+REPO=Ralsei-x64/Stella
+SITE=https://ralsei-x64.github.io/Stella/
 
 die() { echo "appcast.sh: $*" >&2; exit 1; }
 
@@ -41,7 +41,7 @@ if [[ ${1:-} == --local ]]; then
     shift 2
 fi
 [[ -x $SPARKLE_BIN/generate_appcast ]] || die "missing $SPARKLE_BIN (run host/launcher/build.sh)"
-app="$DIST/FX Steam Launcher.app"
+app="$DIST/Stella.app"
 [[ -d $app ]] || die "missing $app (run host/launcher/dist.sh)"
 plist="$app/Contents/Info.plist"
 version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")
@@ -49,10 +49,10 @@ version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist
     || die "$app has no SUPublicEDKey: dist.sh built it without in-app updates"
 key_args=()
 [[ -z ${SPARKLE_KEY_FILE:-} ]] || key_args=(--ed-key-file "$SPARKLE_KEY_FILE")
-dmg_name="FX-Steam-Launcher-$version.dmg"
+dmg_name="Stella-$version.dmg"
 dmg="$DIST/$dmg_name"
 [[ -f $dmg ]] || die "missing $dmg"
-notes="FX-Steam-Launcher-$version.md"
+notes="Stella-$version.md"
 
 if [[ -z $local_prefix ]]; then
     command -v gh >/dev/null || die "gh not found (brew install gh)"
@@ -71,7 +71,7 @@ else
     dir="$OUT/updates-local"
     prefix=$local_prefix
     mkdir -p "$dir"
-    printf '## FX Steam Launcher %s\n\nLocal test feed.\n' "$version" >"$dir/$notes"
+    printf '## Stella %s\n\nLocal test feed.\n' "$version" >"$dir/$notes"
 fi
 rm -f "$dir/$dmg_name"
 cp -c "$dmg" "$dir/$dmg_name" 2>/dev/null || cp "$dmg" "$dir/$dmg_name"
@@ -119,9 +119,9 @@ PY
     rm -f "$before"
 fi
 
-# Deltas: "FX Steam Launcher<new>-<old>.delta" -> "FX.Steam.Launcher<new>-<old>.delta".
+# Deltas: "Stella<new>-<old>.delta" -> "Stella<new>-<old>.delta".
 deltas=()
-for d in "$dir/FX Steam Launcher$version-"*.delta; do
+for d in "$dir/Stella$version-"*.delta; do
     [[ -e $d ]] || continue
     base=$(basename "$d")
     dotted=${base// /.}

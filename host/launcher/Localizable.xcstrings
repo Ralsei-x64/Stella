@@ -1295,24 +1295,24 @@
         }
       }
     },
-    "Cannot open or lock the SteamOS disk %@: permission denied. In Finder > Get Info, check that you have Read & Write access to the file and its volume. In System Settings > Privacy & Security, allow FX Steam Launcher access to removable volumes (or Full Disk Access if needed), then try again. You can also move the disk to a writable local folder and select it again in Settings." : {
+    "Cannot open or lock the SteamOS disk %@: permission denied. In Finder > Get Info, check that you have Read & Write access to the file and its volume. In System Settings > Privacy & Security, allow Stella access to removable volumes (or Full Disk Access if needed), then try again. You can also move the disk to a writable local folder and select it again in Settings." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cannot open or lock the SteamOS disk %@: permission denied. In Finder > Get Info, check that you have Read & Write access to the file and its volume. In System Settings > Privacy & Security, allow FX Steam Launcher access to removable volumes (or Full Disk Access if needed), then try again. You can also move the disk to a writable local folder and select it again in Settings."
+            "value" : "Cannot open or lock the SteamOS disk %@: permission denied. In Finder > Get Info, check that you have Read & Write access to the file and its volume. In System Settings > Privacy & Security, allow Stella access to removable volumes (or Full Disk Access if needed), then try again. You can also move the disk to a writable local folder and select it again in Settings."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не удалось открыть или заблокировать диск SteamOS %@: нет доступа. В Finder > «Свойства» проверьте право на чтение и запись файла и его тома. В «Системные настройки» > «Конфиденциальность и безопасность» разрешите FX Steam Launcher доступ к съёмным томам (при необходимости — полный доступ к диску) и повторите попытку. Также можно переместить образ в локальную папку с правом записи и заново выбрать его в настройках."
+            "value" : "Не удалось открыть или заблокировать диск SteamOS %@: нет доступа. В Finder > «Свойства» проверьте право на чтение и запись файла и его тома. В «Системные настройки» > «Конфиденциальность и безопасность» разрешите Stella доступ к съёмным томам (при необходимости — полный доступ к диску) и повторите попытку. Также можно переместить образ в локальную папку с правом записи и заново выбрать его в настройках."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无法打开或锁定 SteamOS 磁盘 %@：权限不足。请在 Finder >“显示简介”中确认您对文件及其所在宗卷具有读写权限。在“系统设置”>“隐私与安全性”中允许 FX Steam Launcher 访问可移动宗卷（必要时授予完全磁盘访问权限），然后重试。您也可以将磁盘移到可写的本地文件夹，再在设置中重新选择。"
+            "value" : "无法打开或锁定 SteamOS 磁盘 %@：权限不足。请在 Finder >“显示简介”中确认您对文件及其所在宗卷具有读写权限。在“系统设置”>“隐私与安全性”中允许 Stella 访问可移动宗卷（必要时授予完全磁盘访问权限），然后重试。您也可以将磁盘移到可写的本地文件夹，再在设置中重新选择。"
           }
         }
       }
@@ -1789,18 +1789,18 @@
         }
       }
     },
-    "Crash reports and rare errors go to the FX Steam Launcher developers (Sentry). No personal data." : {
+    "Crash reports and rare errors go to the Stella developers (Sentry). No personal data." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Отчёты о сбоях и редких ошибках отправляются разработчикам FX Steam Launcher (Sentry). Без персональных данных."
+            "value" : "Отчёты о сбоях и редких ошибках отправляются разработчикам Stella (Sentry). Без персональных данных."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "崩溃报告和偶发错误会发送给 FX Steam Launcher 开发者（Sentry）。不含个人数据。"
+            "value" : "崩溃报告和偶发错误会发送给 Stella 开发者（Sentry）。不含个人数据。"
           }
         }
       }
@@ -2189,18 +2189,18 @@
         }
       }
     },
-    "Describe what went wrong. Your description, your email and the items checked below go to the FX Steam Launcher developers (sentry.fxgam.es)." : {
+    "Describe what went wrong. Your description, your email and the items checked below go to the Stella developers (sentry.fxgam.es)." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Опишите проблему. Ваше описание, адрес электронной почты и отмеченные ниже данные будут отправлены разработчикам FX Steam Launcher (sentry.fxgam.es)."
+            "value" : "Опишите проблему. Ваше описание, адрес электронной почты и отмеченные ниже данные будут отправлены разработчикам Stella (sentry.fxgam.es)."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "描述出现的问题。你的描述、电子邮件地址和下方勾选的内容将发送给 FX Steam Launcher 开发者（sentry.fxgam.es）。"
+            "value" : "描述出现的问题。你的描述、电子邮件地址和下方勾选的内容将发送给 Stella 开发者（sentry.fxgam.es）。"
           }
         }
       }
@@ -2350,18 +2350,18 @@
         }
       }
     },
-    "Downloading FX Steam Launcher %@…" : {
+    "Downloading Stella %@…" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Загрузка FX Steam Launcher %@…"
+            "value" : "Загрузка Stella %@…"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "正在下载 FX Steam Launcher %@…"
+            "value" : "正在下载 Stella %@…"
           }
         }
       }
@@ -2704,152 +2704,152 @@
         }
       }
     },
-    "FX Steam Launcher %@ is available — you have %@" : {
+    "Stella %@ is available — you have %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "FX Steam Launcher %1$@ is available — you have %2$@"
+            "value" : "Stella %1$@ is available — you have %2$@"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Доступен FX Steam Launcher %@ — у вас версия %@"
+            "value" : "Доступен Stella %@ — у вас версия %@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher %@ 已发布 — 当前版本为 %@"
+            "value" : "Stella %@ 已发布 — 当前版本为 %@"
           }
         }
       }
     },
-    "FX Steam Launcher %@ is ready to install" : {
+    "Stella %@ is ready to install" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher %@ готов к установке"
+            "value" : "Stella %@ готов к установке"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher %@ 已可安装"
+            "value" : "Stella %@ 已可安装"
           }
         }
       }
     },
-    "FX Steam Launcher %@ is the newest version available." : {
+    "Stella %@ is the newest version available." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher %@ — новейшая доступная версия."
+            "value" : "Stella %@ — новейшая доступная версия."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher %@ 已是最新版本。"
+            "value" : "Stella %@ 已是最新版本。"
           }
         }
       }
     },
-    "FX Steam Launcher > Check for Updates… checks at any time." : {
+    "Stella > Check for Updates… checks at any time." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Проверить обновления в любое время можно через FX Steam Launcher > «Проверить обновления…»."
+            "value" : "Проверить обновления в любое время можно через Stella > «Проверить обновления…»."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "随时可通过“FX Steam Launcher > 检查更新…”检查更新。"
+            "value" : "随时可通过“Stella > 检查更新…”检查更新。"
           }
         }
       }
     },
-    "FX Steam Launcher cannot start" : {
+    "Stella cannot start" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не удалось запустить FX Steam Launcher"
+            "value" : "Не удалось запустить Stella"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher 无法启动"
+            "value" : "Stella 无法启动"
           }
         }
       }
     },
-    "FX Steam Launcher cannot start SteamOS inside a macOS virtual machine. Nested virtualization is not supported. Run the launcher directly on your Mac, not inside a virtual machine." : {
+    "Stella cannot start SteamOS inside a macOS virtual machine. Nested virtualization is not supported. Run the launcher directly on your Mac, not inside a virtual machine." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher не может запустить SteamOS внутри виртуальной машины macOS: вложенная виртуализация не поддерживается. Запустите лаунчер непосредственно на Mac, а не в виртуальной машине."
+            "value" : "Stella не может запустить SteamOS внутри виртуальной машины macOS: вложенная виртуализация не поддерживается. Запустите лаунчер непосредственно на Mac, а не в виртуальной машине."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher 无法在 macOS 虚拟机内启动 SteamOS：不支持嵌套虚拟化。请直接在 Mac 上运行启动器，而不是在虚拟机中运行。"
+            "value" : "Stella 无法在 macOS 虚拟机内启动 SteamOS：不支持嵌套虚拟化。请直接在 Mac 上运行启动器，而不是在虚拟机中运行。"
           }
         }
       }
     },
-    "FX Steam Launcher needs a SteamOS disk image (steamos.img, ~87 GB sparse).\n\n" : {
+    "Stella needs a SteamOS disk image (steamos.img, ~87 GB sparse).\n\n" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher требуется образ диска SteamOS (steamos.img, ~87 ГБ, разреженный).\n\n"
+            "value" : "Stella требуется образ диска SteamOS (steamos.img, ~87 ГБ, разреженный).\n\n"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher 需要 SteamOS 磁盘映像（steamos.img，约 87 GB 稀疏文件）。\n\n"
+            "value" : "Stella 需要 SteamOS 磁盘映像（steamos.img，约 87 GB 稀疏文件）。\n\n"
           }
         }
       }
     },
-    "FX Steam Launcher stopped unexpectedly" : {
+    "Stella stopped unexpectedly" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher неожиданно завершил работу"
+            "value" : "Stella неожиданно завершил работу"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher 意外停止"
+            "value" : "Stella 意外停止"
           }
         }
       }
     },
-    "FX Steam Launcher: SteamOS user steamos (disk %@)" : {
+    "Stella: SteamOS user steamos (disk %@)" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher: пользователь SteamOS steamos (диск %@)"
+            "value" : "Stella: пользователь SteamOS steamos (диск %@)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher：SteamOS 用户 steamos（磁盘 %@）"
+            "value" : "Stella：SteamOS 用户 steamos（磁盘 %@）"
           }
         }
       }
@@ -3412,18 +3412,18 @@
       }
     },
     "H" : {},
-    "Hardware virtualization is unavailable on this system. FX Steam Launcher needs the macOS Hypervisor framework to start SteamOS. Run the launcher directly on a supported Mac." : {
+    "Hardware virtualization is unavailable on this system. Stella needs the macOS Hypervisor framework to start SteamOS. Run the launcher directly on a supported Mac." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "В этой системе недоступна аппаратная виртуализация. Для запуска SteamOS FX Steam Launcher требуется фреймворк macOS Hypervisor. Запустите лаунчер непосредственно на поддерживаемом Mac."
+            "value" : "В этой системе недоступна аппаратная виртуализация. Для запуска SteamOS Stella требуется фреймворк macOS Hypervisor. Запустите лаунчер непосредственно на поддерживаемом Mac."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此系统无法使用硬件虚拟化。FX Steam Launcher 需要 macOS Hypervisor 框架才能启动 SteamOS。请直接在受支持的 Mac 上运行启动器。"
+            "value" : "此系统无法使用硬件虚拟化。Stella 需要 macOS Hypervisor 框架才能启动 SteamOS。请直接在受支持的 Mac 上运行启动器。"
           }
         }
       }
@@ -3606,18 +3606,18 @@
         }
       }
     },
-    "Install and Relaunch shuts SteamOS down cleanly (as Shut Down SteamOS does), installs the update and opens FX Steam Launcher again. Install on Quit installs it when you quit FX Steam Launcher or SteamOS restarts." : {
+    "Install and Relaunch shuts SteamOS down cleanly (as Shut Down SteamOS does), installs the update and opens Stella again. Install on Quit installs it when you quit Stella or SteamOS restarts." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "«Установить и перезапустить» штатно выключает SteamOS (как «Выключить SteamOS»), устанавливает обновление и снова открывает FX Steam Launcher. «Установить при выходе» установит его, когда вы завершите FX Steam Launcher или SteamOS перезагрузится."
+            "value" : "«Установить и перезапустить» штатно выключает SteamOS (как «Выключить SteamOS»), устанавливает обновление и снова открывает Stella. «Установить при выходе» установит его, когда вы завершите Stella или SteamOS перезагрузится."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“安装并重新启动”会正常关闭 SteamOS（与“关闭 SteamOS”相同），安装更新并重新打开 FX Steam Launcher。“退出时安装”会在你退出 FX Steam Launcher 或 SteamOS 重启时安装。"
+            "value" : "“安装并重新启动”会正常关闭 SteamOS（与“关闭 SteamOS”相同），安装更新并重新打开 Stella。“退出时安装”会在你退出 Stella 或 SteamOS 重启时安装。"
           }
         }
       }
@@ -3638,18 +3638,18 @@
         }
       }
     },
-    "Installing FX Steam Launcher %@…" : {
+    "Installing Stella %@…" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Установка FX Steam Launcher %@…"
+            "value" : "Установка Stella %@…"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "正在安装 FX Steam Launcher %@…"
+            "value" : "正在安装 Stella %@…"
           }
         }
       }
@@ -4711,18 +4711,18 @@
         }
       }
     },
-    "Off: the guest keeps its resolution and the picture is scaled to the window." : {
+    "In fullscreen, use the current display’s native resolution below any camera housing. Turn off to keep a fixed guest resolution." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Выкл.: гостевая система сохраняет своё разрешение, а изображение масштабируется по размеру окна."
+            "value" : "В полноэкранном режиме используется физическое разрешение текущего экрана под вырезом камеры. Отключите для фиксированного разрешения гостевой системы."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "关闭：客户机保持分辨率，画面缩放到窗口。"
+            "value" : "全屏时使用当前显示器摄像头区域下方的原生分辨率。关闭后使用固定的客户机分辨率。"
           }
         }
       }
@@ -5160,18 +5160,18 @@
         }
       }
     },
-    "Preparing FX Steam Launcher %@…" : {
+    "Preparing Stella %@…" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Подготовка FX Steam Launcher %@…"
+            "value" : "Подготовка Stella %@…"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "正在准备 FX Steam Launcher %@…"
+            "value" : "正在准备 Stella %@…"
           }
         }
       }
@@ -5192,50 +5192,50 @@
         }
       }
     },
-    "Quit FX Steam Launcher" : {
+    "Quit Stella" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Завершить FX Steam Launcher"
+            "value" : "Завершить Stella"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出 FX Steam Launcher"
+            "value" : "退出 Stella"
           }
         }
       }
     },
-    "Quit FX Steam Launcher completely before replacing or moving it, then open the copy in Applications." : {
+    "Quit Stella completely before replacing or moving it, then open the copy in Applications." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Перед заменой или перемещением FX Steam Launcher полностью завершите его работу, затем откройте копию из папки «Программы»."
+            "value" : "Перед заменой или перемещением Stella полностью завершите его работу, затем откройте копию из папки «Программы»."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "替换或移动 FX Steam Launcher 前，请将其完全退出，然后打开“应用程序”中的副本。"
+            "value" : "替换或移动 Stella 前，请将其完全退出，然后打开“应用程序”中的副本。"
           }
         }
       }
     },
-    "Quitting FX Steam Launcher shuts SteamOS down: it resumes and shuts down cleanly. The suspended state (and a running game's unsaved progress) is not kept." : {
+    "Quitting Stella shuts SteamOS down: it resumes and shuts down cleanly. The suspended state (and a running game's unsaved progress) is not kept." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "При завершении FX Steam Launcher SteamOS возобновляет работу и корректно выключается. Приостановленное состояние (и несохранённый прогресс запущенной игры) не сохраняется."
+            "value" : "При завершении Stella SteamOS возобновляет работу и корректно выключается. Приостановленное состояние (и несохранённый прогресс запущенной игры) не сохраняется."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出 FX Steam Launcher 会关闭 SteamOS：它会先恢复运行，再正常关机。挂起状态（以及正在运行的游戏中未保存的进度）不会保留。"
+            "value" : "退出 Stella 会关闭 SteamOS：它会先恢复运行，再正常关机。挂起状态（以及正在运行的游戏中未保存的进度）不会保留。"
           }
         }
       }
@@ -5689,18 +5689,18 @@
         }
       }
     },
-    "Reset all FX Steam Launcher settings to their defaults?" : {
+    "Reset all Stella settings to their defaults?" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Сбросить все настройки FX Steam Launcher до значений по умолчанию?"
+            "value" : "Сбросить все настройки Stella до значений по умолчанию?"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "将所有 FX Steam Launcher 设置还原为默认值？"
+            "value" : "将所有 Stella 设置还原为默认值？"
           }
         }
       }
@@ -7152,18 +7152,18 @@
         }
       }
     },
-    "SteamOS is shutting down. FX Steam Launcher opens again once the update is installed." : {
+    "SteamOS is shutting down. Stella opens again once the update is installed." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "SteamOS выключается. FX Steam Launcher откроется снова, когда обновление будет установлено."
+            "value" : "SteamOS выключается. Stella откроется снова, когда обновление будет установлено."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "SteamOS 正在关闭。更新安装完成后 FX Steam Launcher 会重新打开。"
+            "value" : "SteamOS 正在关闭。更新安装完成后 Stella 会重新打开。"
           }
         }
       }
@@ -7314,18 +7314,18 @@
         }
       }
     },
-    "SteamOS suspended — FX Steam Launcher" : {
+    "SteamOS suspended — Stella" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "SteamOS приостановлена — FX Steam Launcher"
+            "value" : "SteamOS приостановлена — Stella"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "SteamOS 已挂起 — FX Steam Launcher"
+            "value" : "SteamOS 已挂起 — Stella"
           }
         }
       }
@@ -7529,34 +7529,34 @@
         }
       }
     },
-    "Suspend freezes SteamOS and the running game at once and keeps them in memory; click the Dock icon or Resume in the menu bar to continue where you left off. Suspended state is kept while FX Steam Launcher is running: quitting the app or restarting the Mac shuts SteamOS down." : {
+    "Suspend freezes SteamOS and the running game at once and keeps them in memory; click the Dock icon or Resume in the menu bar to continue where you left off. Suspended state is kept while Stella is running: quitting the app or restarting the Mac shuts SteamOS down." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Приостановка одновременно замораживает SteamOS и запущенную игру и сохраняет их в памяти; нажмите значок в Dock или «Возобновить» в строке меню, чтобы продолжить с места остановки. Приостановленное состояние сохраняется, пока работает FX Steam Launcher: при завершении приложения или перезапуске Mac SteamOS выключается."
+            "value" : "Приостановка одновременно замораживает SteamOS и запущенную игру и сохраняет их в памяти; нажмите значок в Dock или «Возобновить» в строке меню, чтобы продолжить с места остановки. Приостановленное состояние сохраняется, пока работает Stella: при завершении приложения или перезапуске Mac SteamOS выключается."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "挂起会同时冻结 SteamOS 和正在运行的游戏，并将它们保留在内存中；点按程序坞图标或菜单栏中的“恢复”，即可从上次停止的位置继续。挂起状态仅在 FX Steam Launcher 运行期间保留：退出应用或重新启动 Mac 会关闭 SteamOS。"
+            "value" : "挂起会同时冻结 SteamOS 和正在运行的游戏，并将它们保留在内存中；点按程序坞图标或菜单栏中的“恢复”，即可从上次停止的位置继续。挂起状态仅在 Stella 运行期间保留：退出应用或重新启动 Mac 会关闭 SteamOS。"
           }
         }
       }
     },
-    "Suspended state is kept while FX Steam Launcher is running." : {
+    "Suspended state is kept while Stella is running." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Приостановленное состояние сохраняется, пока работает FX Steam Launcher."
+            "value" : "Приостановленное состояние сохраняется, пока работает Stella."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "挂起状态仅在 FX Steam Launcher 运行期间保留。"
+            "value" : "挂起状态仅在 Stella 运行期间保留。"
           }
         }
       }
@@ -7689,24 +7689,24 @@
         }
       }
     },
-    "The FX Steam Launcher installation is incomplete: its SteamOS download tool (desync) is missing, unreadable or not executable. Download the latest DMG again and copy FX Steam Launcher to Applications, replacing the old copy. Check security software for a blocked or removed desync file, then try again." : {
+    "The Stella installation is incomplete: its SteamOS download tool (desync) is missing, unreadable or not executable. Download the latest DMG again and copy Stella to Applications, replacing the old copy. Check security software for a blocked or removed desync file, then try again." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The FX Steam Launcher installation is incomplete: its SteamOS download tool (desync) is missing, unreadable or not executable. Download the latest DMG again and copy FX Steam Launcher to Applications, replacing the old copy. Check security software for a blocked or removed desync file, then try again."
+            "value" : "The Stella installation is incomplete: its SteamOS download tool (desync) is missing, unreadable or not executable. Download the latest DMG again and copy Stella to Applications, replacing the old copy. Check security software for a blocked or removed desync file, then try again."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Установка FX Steam Launcher неполная: инструмент загрузки SteamOS (desync) отсутствует, недоступен для чтения или запуска. Скачайте последнюю версию DMG заново и скопируйте FX Steam Launcher в «Программы», заменив старую копию. Проверьте, не заблокировала или не удалила ли desync защитная программа, затем повторите попытку."
+            "value" : "Установка Stella неполная: инструмент загрузки SteamOS (desync) отсутствует, недоступен для чтения или запуска. Скачайте последнюю версию DMG заново и скопируйте Stella в «Программы», заменив старую копию. Проверьте, не заблокировала или не удалила ли desync защитная программа, затем повторите попытку."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FX Steam Launcher 安装不完整：SteamOS 下载工具（desync）缺失、无法读取或无法执行。请重新下载最新的 DMG，将 FX Steam Launcher 复制到“应用程序”并替换旧副本。请检查安全软件是否阻止或删除了 desync 文件，然后重试。"
+            "value" : "Stella 安装不完整：SteamOS 下载工具（desync）缺失、无法读取或无法执行。请重新下载最新的 DMG，将 Stella 复制到“应用程序”并替换旧副本。请检查安全软件是否阻止或删除了 desync 文件，然后重试。"
           }
         }
       }
@@ -7861,18 +7861,18 @@
         }
       }
     },
-    "The location is read-only. Choose a writable folder, not the mounted FX Steam Launcher installer." : {
+    "The location is read-only. Choose a writable folder, not the mounted Stella installer." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Это место доступно только для чтения. Выберите папку с правом записи, а не смонтированный установщик FX Steam Launcher."
+            "value" : "Это место доступно только для чтения. Выберите папку с правом записи, а не смонтированный установщик Stella."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此位置为只读。请选择可写文件夹，不要选择已挂载的 FX Steam Launcher 安装映像。"
+            "value" : "此位置为只读。请选择可写文件夹，不要选择已挂载的 Stella 安装映像。"
           }
         }
       }
@@ -8123,18 +8123,18 @@
         }
       }
     },
-    "This controller needs Input Monitoring to pass through as itself. Enable FX Steam Launcher in Mac System Settings › Privacy & Security › Input Monitoring. If access is already enabled but the controller is still unavailable, restart the launcher." : {
+    "This controller needs Input Monitoring to pass through as itself. Enable Stella in Mac System Settings › Privacy & Security › Input Monitoring. If access is already enabled but the controller is still unavailable, restart the launcher." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Для этого контроллера нужен доступ «Мониторинг ввода», чтобы передавать его в SteamOS как исходное устройство. Включите FX Steam Launcher в Системных настройках Mac › Конфиденциальность и безопасность › Мониторинг ввода. Если доступ уже включён, но контроллер всё ещё недоступен, перезапустите лаунчер."
+            "value" : "Для этого контроллера нужен доступ «Мониторинг ввода», чтобы передавать его в SteamOS как исходное устройство. Включите Stella в Системных настройках Mac › Конфиденциальность и безопасность › Мониторинг ввода. Если доступ уже включён, но контроллер всё ещё недоступен, перезапустите лаунчер."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此控制器需要“输入监控”权限才能以自身身份传入 SteamOS。请在 Mac 系统设置 › 隐私与安全性 › 输入监控中启用 FX Steam Launcher。如果已启用访问权限但控制器仍不可用，请重新启动启动器。"
+            "value" : "此控制器需要“输入监控”权限才能以自身身份传入 SteamOS。请在 Mac 系统设置 › 隐私与安全性 › 输入监控中启用 Stella。如果已启用访问权限但控制器仍不可用，请重新启动启动器。"
           }
         }
       }
@@ -8155,18 +8155,18 @@
         }
       }
     },
-    "This development build never checks at startup; FX Steam Launcher > Check for Updates… does." : {
+    "This development build never checks at startup; Stella > Check for Updates… does." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Эта сборка для разработки никогда не проверяет обновления при запуске; проверить их можно через FX Steam Launcher > «Проверить обновления…»."
+            "value" : "Эта сборка для разработки никогда не проверяет обновления при запуске; проверить их можно через Stella > «Проверить обновления…»."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此开发版不会在启动时检查更新；可通过“FX Steam Launcher > 检查更新…”检查。"
+            "value" : "此开发版不会在启动时检查更新；可通过“Stella > 检查更新…”检查。"
           }
         }
       }
@@ -8798,18 +8798,18 @@
         }
       }
     },
-    "When FX Steam Launcher is in the background" : {
+    "When Stella is in the background" : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Когда FX Steam Launcher в фоновом режиме"
+            "value" : "Когда Stella в фоновом режиме"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "当 FX Steam Launcher 在后台时"
+            "value" : "当 Stella 在后台时"
           }
         }
       }
@@ -9698,18 +9698,18 @@
         }
       }
     },
-    "the SteamOS disk %@ is in use by another FX Steam Launcher (or steamac-vm). Quit it first: two VMs writing one disk corrupt its file systems." : {
+    "the SteamOS disk %@ is in use by another Stella (or steamac-vm). Quit it first: two VMs writing one disk corrupt its file systems." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "диск SteamOS %@ используется другим FX Steam Launcher (или steamac-vm). Сначала завершите его работу: две ВМ, записывающие данные на один диск, повреждают его файловые системы."
+            "value" : "диск SteamOS %@ используется другим Stella (или steamac-vm). Сначала завершите его работу: две ВМ, записывающие данные на один диск, повреждают его файловые системы."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "SteamOS 磁盘 %@ 正被另一个 FX Steam Launcher（或 steamac-vm）使用。请先退出它：两个虚拟机同时写入同一磁盘会损坏其文件系统。"
+            "value" : "SteamOS 磁盘 %@ 正被另一个 Stella（或 steamac-vm）使用。请先退出它：两个虚拟机同时写入同一磁盘会损坏其文件系统。"
           }
         }
       }

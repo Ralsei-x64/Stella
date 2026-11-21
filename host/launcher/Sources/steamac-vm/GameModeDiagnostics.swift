@@ -42,7 +42,7 @@ enum GameModeDiagnostics {
             let process = Process(), done = DispatchSemaphore(value: 0)
             process.executableURL = URL(fileURLWithPath: "/usr/bin/log")
             process.arguments = ["show", "--last", "10m", "--style", "compact", "--info", "--debug", "--predicate",
-                "process == 'gamepolicyd' AND (eventMessage BEGINSWITH 'Found game GameProcess(Optional(\"steamac-vm\"),' OR eventMessage BEGINSWITH 'Found game GameProcess(Optional(\"FX Steam Launcher\"),' OR eventMessage BEGINSWITH 'Game mode status is now ')"]
+                "process == 'gamepolicyd' AND (eventMessage BEGINSWITH 'Found game GameProcess(Optional(\"steamac-vm\"),' OR eventMessage BEGINSWITH 'Found game GameProcess(Optional(\"Stella\"),' OR eventMessage BEGINSWITH 'Game mode status is now ')"]
             process.standardOutput = file; process.standardError = file
             process.terminationHandler = { _ in done.signal() }
             try process.run()

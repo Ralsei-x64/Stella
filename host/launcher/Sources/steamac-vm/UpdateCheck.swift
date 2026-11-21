@@ -8,7 +8,7 @@ import SwiftUI
 /// app. Every other build (source builds, the dev launcher, copies Sparkle cannot replace) uses
 /// the flow below.
 ///
-/// The latest GitHub release of fxgl/steamac against this launcher's
+/// The latest GitHub release of Ralsei-x64/Stella against this launcher's
 /// CFBundleShortVersionString. Runs in the VM process of the first boot (once per app launch, not
 /// per VM reboot) a few seconds after the window is up, at most every 6 h (also across launches),
 /// never in development builds (work/out/steamac-vm), and only while Settings > General "Check for
@@ -26,8 +26,8 @@ import SwiftUI
 final class UpdateChecker {
     static let shared = UpdateChecker()
 
-    static let latestURL = URL(string: "https://api.github.com/repos/fxgl/steamac/releases/latest")!
-    static let releasesPage = URL(string: "https://github.com/fxgl/steamac/releases")!
+    static let latestURL = URL(string: "https://api.github.com/repos/Ralsei-x64/Stella/releases/latest")!
+    static let releasesPage = URL(string: "https://github.com/Ralsei-x64/Stella/releases")!
     static let urlEnv = "STEAMAC_UPDATE_URL", fakeVersionEnv = "STEAMAC_FAKE_VERSION"
     static let interval: TimeInterval = 6 * 3600
     static let timeout: TimeInterval = 10
@@ -148,9 +148,9 @@ final class UpdateChecker {
         for (a, b, want) in order where compare(parse(a)!, parse(b)!) != want { failures.append("update: \(a) vs \(b) not \(want.rawValue)") }
         let json = """
             [{"tag_name": "v9.0", "draft": true}, {"tag_name": "v8.0", "prerelease": true}, {"tag_name": "nightly"},
-             {"tag_name": "v1.3.10", "name": "1.3.10", "body": "x", "html_url": "https://github.com/fxgl/steamac/releases/tag/v1.3.10",
-              "assets": [{"name": "FX-Steam-Launcher-1.3.10-gpl-sources.tar", "browser_download_url": "https://e/x.tar"},
-                         {"name": "FX-Steam-Launcher-1.3.10.dmg", "browser_download_url": "https://e/x.dmg"}]},
+             {"tag_name": "v1.3.10", "name": "1.3.10", "body": "x", "html_url": "https://github.com/Ralsei-x64/Stella/releases/tag/v1.3.10",
+              "assets": [{"name": "Stella-1.3.10-gpl-sources.tar", "browser_download_url": "https://e/x.tar"},
+                         {"name": "Stella-1.3.10.dmg", "browser_download_url": "https://e/x.dmg"}]},
              {"tag_name": "v1.3.9"}]
             """
         let newest = try? newest(inJSON: Data(json.utf8))
@@ -649,7 +649,7 @@ struct UpdateView: View {
                         Button("Cancel") { actions.dismiss() }.keyboardShortcut(.cancelAction)
                     }
                 case .available(let r, let current):
-                    Text("FX Steam Launcher \(r.versionString) is available — you have \(current)")
+                    Text("Stella \(r.versionString) is available — you have \(current)")
                         .font(.headline)
                         .fixedSize(horizontal: false, vertical: true)
                     if let subtitle = subtitle(r) {
@@ -678,7 +678,7 @@ struct UpdateView: View {
                     }
                 case .upToDate(let current, let note):
                     Text("You're up to date").font(.headline)
-                    Text("FX Steam Launcher \(current) is the newest version available.")
+                    Text("Stella \(current) is the newest version available.")
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     if let note {
@@ -694,7 +694,7 @@ struct UpdateView: View {
                     Text("Couldn't check for updates").font(.headline)
                     failure(message)
                 case .downloading(let r, let received, let expected):
-                    Text("Downloading FX Steam Launcher \(r.versionString)…").font(.headline)
+                    Text("Downloading Stella \(r.versionString)…").font(.headline)
                     if expected > 0 {
                         ProgressView(value: Double(min(received, expected)), total: Double(expected)).progressViewStyle(.linear)
                         Text("\(bytes(received)) of \(bytes(expected))").font(.caption).foregroundStyle(.secondary)
@@ -710,15 +710,15 @@ struct UpdateView: View {
                         Button("Hide") { actions.dismiss() }.keyboardShortcut(.defaultAction)
                     }
                 case .preparing(let r, let progress):
-                    Text("Preparing FX Steam Launcher \(r.versionString)…").font(.headline)
+                    Text("Preparing Stella \(r.versionString)…").font(.headline)
                     ProgressView(value: progress).progressViewStyle(.linear)
                     HStack {
                         Spacer()
                         Button("Hide") { actions.dismiss() }.keyboardShortcut(.defaultAction)
                     }
                 case .ready(let r):
-                    Text("FX Steam Launcher \(r.versionString) is ready to install").font(.headline)
-                    Text("Install and Relaunch shuts SteamOS down cleanly (as Shut Down SteamOS does), installs the update and opens FX Steam Launcher again. Install on Quit installs it when you quit FX Steam Launcher or SteamOS restarts.")
+                    Text("Stella \(r.versionString) is ready to install").font(.headline)
+                    Text("Install and Relaunch shuts SteamOS down cleanly (as Shut Down SteamOS does), installs the update and opens Stella again. Install on Quit installs it when you quit Stella or SteamOS restarts.")
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack {
@@ -727,8 +727,8 @@ struct UpdateView: View {
                         Button("Install and Relaunch") { actions.installNow() }.keyboardShortcut(.defaultAction)
                     }
                 case .installing(let r):
-                    Text("Installing FX Steam Launcher \(r.versionString)…").font(.headline)
-                    Text("SteamOS is shutting down. FX Steam Launcher opens again once the update is installed.")
+                    Text("Installing Stella \(r.versionString)…").font(.headline)
+                    Text("SteamOS is shutting down. Stella opens again once the update is installed.")
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack {

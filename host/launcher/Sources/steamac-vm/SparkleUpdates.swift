@@ -44,12 +44,12 @@ final class SparkleUpdates: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     static func selfCheck() -> [String] {
         let info = ["SUFeedURL": "https://fxgl.github.io/steamac/appcast.xml", "SUPublicEDKey": "key"]
         let cases: [(String, [String: Any], String, Bool, Bool)] = [
-            ("release", info, "/Applications/FX Steam Launcher.app", false, true),
-            ("source build", [:], "/Applications/FX Steam Launcher.app", false, false),
-            ("no key", ["SUFeedURL": "https://e/appcast.xml"], "/Applications/FX Steam Launcher.app", false, false),
+            ("release", info, "/Applications/Stella.app", false, true),
+            ("source build", [:], "/Applications/Stella.app", false, false),
+            ("no key", ["SUFeedURL": "https://e/appcast.xml"], "/Applications/Stella.app", false, false),
             ("dev launcher", info, "/x/work/out", false, false),
-            ("translocated", info, "/private/var/folders/x/T/AppTranslocation/1/d/FX Steam Launcher.app", false, false),
-            ("disk image", info, "/Volumes/FX Steam Launcher/FX Steam Launcher.app", true, false),
+            ("translocated", info, "/private/var/folders/x/T/AppTranslocation/1/d/Stella.app", false, false),
+            ("disk image", info, "/Volumes/Stella/Stella.app", true, false),
         ]
         return cases.compactMap { name, info, path, readOnly, want in
             (blocker(info: info, bundlePath: path, readOnlyVolume: readOnly) == nil) == want ? nil : "update: in-app updates for \(name) not \(want)"
@@ -155,7 +155,7 @@ final class SparkleUpdates: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     }
 
     func installOnQuit() {
-        log("update: \(release?.tag ?? "the update") installs when FX Steam Launcher quits")
+        log("update: \(release?.tag ?? "the update") installs when Stella quits")
         answer(.dismiss)
     }
 

@@ -3,16 +3,16 @@ import Combine
 import Foundation
 
 /// The launcher's preferences (Settings window), persisted in the defaults domain
-/// `es.fxgam.steamac` (~/Library/Preferences/es.fxgam.steamac.plist; STEAMAC_DEFAULTS_DOMAIN
+/// `io.github.ralsei-x64.Stella` (~/Library/Preferences/io.github.ralsei-x64.Stella.plist; STEAMAC_DEFAULTS_DOMAIN
 /// overrides it, for tests). Command-line flags override "next start" values for one run without
 /// persisting them (`overrides`). Live ("applies now") values are observed through the
 /// `@Published` publishers by the window, the gamepad bridge, the sound control and PerfStats.
 final class LauncherSettings: ObservableObject {
     /// This process's settings (the VM process's window, gamepad, sound and Settings window share it).
     static let shared = LauncherSettings()
-    static let defaultDomain = "es.fxgam.steamac"
+    static let defaultDomain = "io.github.ralsei-x64.Stella"
     /// Domain used before the bundle id change; copied once into the domain if that is still empty.
-    static let legacyDomain = "dev.steamac.vm"
+    static let legacyDomain = "es.fxgam.steamac"
     static var domain: String {
         ProcessInfo.processInfo.environment["STEAMAC_DEFAULTS_DOMAIN"].flatMap { $0.isEmpty ? nil : $0 } ?? defaultDomain
     }
@@ -407,7 +407,7 @@ final class LauncherSettings: ObservableObject {
 
     init() {
         let domain = LauncherSettings.domain
-        // The embedded/bundled Info.plist makes es.fxgam.steamac our own identifier: that domain is
+        // The embedded/bundled Info.plist makes io.github.ralsei-x64.Stella our own identifier: that domain is
         // .standard (UserDefaults refuses it as a suite name).
         defaults = domain == Bundle.main.bundleIdentifier ? .standard : (UserDefaults(suiteName: domain) ?? .standard)
         if domain == LauncherSettings.defaultDomain { LauncherSettings.migrateLegacy(into: defaults) }
@@ -416,7 +416,14 @@ final class LauncherSettings: ObservableObject {
 
     private static func migrateLegacy(into defaults: UserDefaults) {
         guard defaults.persistentDomain(forName: defaultDomain)?.isEmpty ?? true,
-              let old = defaults.persistentDomain(forName: legacyDomain), !old.isEmpty else { return }
+              var old = defaults.persistentDomain(forName: legacyDomain), !old.isEmpty else { return }
+        // Follow the destination monitor on the first Stella launch, including imports
+        // from an FX installation that used a fixed resolution.
+        old[Key.followWindowSize.rawValue] = true
+        if (old[Key.diskImage.rawValue] as? String ?? "").isEmpty {
+            let disk = NSHomeDirectory() + "/Library/Application Support/" + legacyDomain + "/steamos.img"
+            if AppBundle.isDiskImage(disk) { old[Key.diskImage.rawValue] = disk }
+        }
         defaults.setPersistentDomain(old, forName: defaultDomain)
         log("settings: copied \(old.count) preference(s) from \(legacyDomain) to \(defaultDomain)")
     }

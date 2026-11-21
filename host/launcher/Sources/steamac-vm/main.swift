@@ -9,7 +9,7 @@ import Foundation
 // leaves an ignored SIGPIPE alone. The VM process gets it ignored from the supervisor too.
 signal(SIGPIPE, SIG_IGN)
 
-// Finder / `open` launch of the .app: console + launcher log go to ~/Library/Logs/es.fxgam.steamac.
+// Finder / `open` launch of the .app: console + launcher log go to ~/Library/Logs/io.github.ralsei-x64.Stella.
 if !Supervisor.isChild { AppBundle.redirectOutputIfLaunchedFromFinder() }
 
 let settings = LauncherSettings.shared
@@ -19,7 +19,7 @@ do {
     (options, settingsOverrides) = try Options.resolve(CommandLine.arguments, settings: settings)
 } catch {
     FileHandle.standardError.write("steamac-vm: \(error)\n\n\(Options.usage)\n".data(using: .utf8)!)
-    MainActor.assumeIsolated { AppBundle.alertIfLaunchedFromFinder("FX Steam Launcher cannot start", error.localizedDescription) }
+    MainActor.assumeIsolated { AppBundle.alertIfLaunchedFromFinder("Stella cannot start", error.localizedDescription) }
     exit(2)
 }
 if Supervisor.isChild, let driver = Supervisor.profileDriver { options.vulkanDriver = driver }
@@ -101,7 +101,7 @@ if settings.followWindowSize, let f = Supervisor.windowFrame, !f.isEmpty, !optio
 
 // MARK: VM process (one boot)
 
-let windowTitle = "FX Steam Launcher"
+let windowTitle = "Stella"
 
 /// Graceful shutdown policy shared by window close, menu, signals and the console escape; window
 /// close / menu Suspend / Dock click / Quit while suspended (SuspendController).

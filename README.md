@@ -1,4 +1,8 @@
-# steamac — Valve's official ARM64 SteamOS (the Steam Frame image) in a VM on Apple Silicon
+# Stella
+
+Stella is a fork of [FX Steam Launcher](https://github.com/fxgl/steamac) for running SteamOS on Apple Silicon. With **Guest display follows the window size** enabled, fullscreen follows the native resolution of the monitor showing Steam. On a MacBook it uses the panel area below the camera. Windowed mode follows the window size.
+
+On first launch Stella imports FX preferences and reuses the existing SteamOS disk. Shut down FX before opening the same disk in Stella. In Steam’s display settings, enable native resolution for external displays to render Big Picture at the full guest resolution.
 
 **English** · [Русский](README.ru.md) · [简体中文](README.zh.md)
 
@@ -199,8 +203,8 @@ returning to Steam, capture is released automatically. **Mouse** menu:
 - **Capture / Release Mouse Now** — same as Ctrl+Cmd+G.
 
 These and all other settings are in the **Settings** window (see below), domain
-`es.fxgam.steamac` (`defaults read es.fxgam.steamac`); on first launch they are copied once from
-the previous domain `dev.steamac.vm`. Metal stores the shader cache by app identifier, so after
+`io.github.ralsei-x64.Stella` (`defaults read io.github.ralsei-x64.Stella`); on first launch they are copied once from
+the previous domain `es.fxgam.steamac`. Metal stores the shader cache by app identifier, so after
 changing the identifier, the first launch of games compiles shaders again (one “cold” start).
 `--auto-capture on|off` overrides the default for one launch.
 `--mouse tablet` — absolute tablet (gamescope ignores it, so only for other guest compositors),
@@ -214,7 +218,7 @@ SSH is toggled with one switch: **Settings → Advanced → Enable SSH** (or `--
 `--no-ssh`). On each boot the launcher passes `steamac.ssh=0|1`: with 0, the Mac port is not opened
 at all (gvproxy without forwarding), and initramfs masks sshd in SteamOS. By default SSH is enabled
 in the dev launcher (`work/out/steamac-vm`, `./run.sh`, port 2222) and disabled in
-`FX Steam Launcher.app` (the `SteamacReleaseDefaults` key in Info.plist, set by `bundle.sh`). When
+`Stella.app` (the `SteamacReleaseDefaults` key in Info.plist, set by `bundle.sh`). When
 enabled, the launcher generates a password for user `steamos` (20 characters, SecRandomCopyBytes),
 stores it in the Keychain separately for each disk (by its GPT GUID), and on the next boot passes
 only its SHA-512 crypt hash to the guest (“config payload” disk, `steamac.config=1`; the guest
@@ -295,7 +299,7 @@ No HDR, native pen/touch, or video encryption is advertised; use a trusted LAN.
 
 ## Settings window
 
-**FX Steam Launcher → Settings…** (Cmd+, — also works when the guest has the keyboard). Each field
+**Stella → Settings…** (Cmd+, — also works when the guest has the keyboard). Each field
 is labeled “applies now” (takes effect immediately) or “applies on next start” (on the next VM
 start). If anything in the second group changes, **Restart VM to apply** appears at the bottom:
 the guest shuts down normally via the power button, and the supervisor starts the VM again with the
@@ -403,7 +407,7 @@ old assignments, and removal restores the previous launch options.
 ## Suspend
 
 **How:** Settings → General → “When closing the window” → **Suspend** — closing the window then
-suspends the VM instead of shutting it down; or use **FX Steam Launcher → Suspend** (Ctrl+Cmd+S,
+suspends the VM instead of shutting it down; or use **Stella → Suspend** (Ctrl+Cmd+S,
 works even when the guest has the keyboard). `krun_pause` (libkrun patch 0016) stops all vCPUs and
 guest audio, the window is hidden, and a ⏸ icon appears in the menu bar: “SteamOS suspended”,
 since when and how much memory is in use, **Resume**, **Shut Down SteamOS**. A suspended VM uses
@@ -769,10 +773,10 @@ GameController controller, and a new GameController controller waits if BLE alre
 and `pad state` (the guest's pads, their last rumble level, whether the guest takes HID devices,
 connected DualSenses and Steam Controllers, and input reports passed through).
 
-## FX Steam Launcher.app
+## Stella.app
 
-`host/launcher/build.sh` (and `./build.sh host`) builds `work/out/FX Steam Launcher.app` in
-addition to `work/out/steamac-vm` (`host/launcher/bundle.sh`): `es.fxgam.steamac`, libraries
+`host/launcher/build.sh` (and `./build.sh host`) builds `work/out/Stella.app` in
+addition to `work/out/steamac-vm` (`host/launcher/bundle.sh`): `io.github.ralsei-x64.Stella`, libraries
 (libkrun, libvirglrenderer, libMoltenVK, libepoxy) in `Contents/Frameworks` via `@rpath`, and in
 `Contents/Resources` — gvproxy, the `Image` kernel, `initramfs.cpio.gz`, `steamac-layer.img`,
 desync, and Valve's CA for disk creation (licenses are in `Resources/licenses`); the icon:
@@ -783,7 +787,7 @@ ad-hoc signing with hypervisor + disable-library-validation entitlements. The ap
 
 Launching from Finder (without arguments) uses the kernel, initramfs, and layer from the bundle,
 and the SteamOS disk from Settings → Advanced → Disk image. By default:
-`~/Library/Application Support/es.fxgam.steamac/steamos.img`; otherwise, the repository's
+`~/Library/Application Support/io.github.ralsei-x64.Stella/steamos.img`; otherwise, the repository's
 `work/out/steamos.img` (next to the bundle or where it was built). If there is no disk, a
 first-launch window offers **Create New Disk…** (see the next section) or **Use Existing Disk…**
 (the image is used in place and never copied; `scripts/build-image.sh` also builds one). A disk must be
@@ -794,7 +798,7 @@ failure instead of staying at 3%. A disk the launcher may not open or lock (perm
 access) is explained with Finder → Get Info → Sharing & Permissions and Privacy & Security, and logged,
 not sent as a crash report (STEAMAC-15). In this
 mode, the guest console and launcher log are written to
-`~/Library/Logs/es.fxgam.steamac/steamac-vm.log`; SIGUSR1 frame dumps go there too. `./run.sh`
+`~/Library/Logs/io.github.ralsei-x64.Stella/steamac-vm.log`; SIGUSR1 frame dumps go there too. `./run.sh`
 and `work/out/steamac-vm` work as before (window settings also apply to them unless overridden by
 flags).
 
@@ -816,25 +820,7 @@ only the safe preen fixes. Files e2fsck cannot place again end up in `/home/lost
 
 ## Uninstalling
 
-The launcher does not partition the Mac's drive: SteamOS, its games and saves live in one disk image
-file. To remove everything:
-
-1. Quit FX Steam Launcher (SteamOS shuts down with it).
-2. Delete the disk image shown in Settings → Advanced → Disk image (by default
-   `~/Library/Application Support/es.fxgam.steamac/steamos.img`, deleted in step 4). A disk on another
-   volume may also leave `steamos.provision.img` (until its first start finished) and the download cache
-   `steamos.img.cache` next to it.
-3. Move `FX Steam Launcher.app` from Applications to the Trash.
-4. Delete the launcher's data (disk, game statistics, Moonlight pairing, download and crash-report caches,
-   logs, saved problem reports) and settings in Terminal:
-
-   ```
-   rm -rf ~/Library/Application\ Support/es.fxgam.steamac ~/Library/Caches/es.fxgam.steamac \
-          ~/Library/Logs/es.fxgam.steamac ~/Library/HTTPStorages/es.fxgam.steamac
-   defaults delete es.fxgam.steamac
-   ```
-5. Optionally, in Keychain Access delete the “FX Steam Launcher: SteamOS user steamos” passwords
-   (service `es.fxgam.steamac.guest-password`, one per disk).
+Quit Stella and move `Stella.app` to the Trash. The SteamOS disk selected under **Settings → Advanced → Disk image** holds your installed games and saves. An imported disk also belongs to your FX installation.
 
 ## Languages
 
@@ -943,7 +929,7 @@ This expected rejection is logged only; all other signature failures still repor
    `compatible=steamos-aarch64`, the version, and the slot size are checked.
 3. Official desync (`fetch-desync.sh`, pinned version and sha256) assembles the 10 GB `rootfs.img`
    from Valve's chunk stores (~4.4 GB of data); the chunk cache is `desync/` in
-   `~/Library/Caches/es.fxgam.steamac` for a disk on the home volume, otherwise in `<disk>.cache` next
+   `~/Library/Caches/io.github.ralsei-x64.Stella` for a disk on the home volume, otherwise in `<disk>.cache` next
    to the disk (an external drive then needs no internal space for it; the folder is removed after
    success), so Stop/Resume (or rerunning the command after Ctrl+C) continues where it left off; a
    complete `<disk>.rootfs-tmp` left by an attempt that failed later is deleted first (desync never
@@ -1019,7 +1005,7 @@ driver's patch revision.
 Before Metal initialises, the launcher checks that its runtime compiler's module cache
 (`DARWIN_USER_CACHE_DIR/<bundle id>/com.apple.metalfe`, including existing hash directories and
 `.pcm` files) is writable. If permissions, ACLs or immutable file flags block it, the launcher logs
-the failing path and redirects Metal to `~/Library/Caches/es.fxgam.steamac/metal-compiler`.
+the failing path and redirects Metal to `~/Library/Caches/io.github.ralsei-x64.Stella/metal-compiler`.
 It does not delete the old cache or change its permissions. This uses Metal's optional cache-path
 SPI; if the override is unavailable or the replacement is also unwritable, that is logged and
 shader compilation errors remain reportable. `work/out/steamac-vm --selftest-metal-cache` reproduces
@@ -1286,7 +1272,7 @@ the client reconnects.
 
 ## Distribution (DMG)
 
-`host/launcher/dist.sh` turns the built `work/out/FX Steam Launcher.app` into the downloadable
+`host/launcher/dist.sh` turns the built `work/out/Stella.app` into the downloadable
 `work/out/dist/FX-Steam-Launcher-<version>.dmg` (the app + a link to `/Applications`). A copy of the
 bundle without the `SteamacBuildOut` key (the path to this build tree) is re-signed with Developer ID,
 hardened runtime, and a secure timestamp, inside-out: first all loose nested Mach-O files
@@ -1401,7 +1387,7 @@ What is sent:
   a crash: only a log line, with no event and no Report a Problem window. Neither is SIGPIPE (both
   processes ignore it: a closed output pipe — the terminal, or the supervisor's stderr channel after
   the supervisor was killed — only fails the write; the VM process then logs to
-  `~/Library/Logs/es.fxgam.steamac/steamac-vm.log` or drops the lines, and lets the guest finish
+  `~/Library/Logs/io.github.ralsei-x64.Stella/steamac-vm.log` or drops the lines, and lets the guest finish
   shutting down; STEAMAC-10). SIGKILL generates a
   warning-level `vm-killed` event, “VM process killed (SIGKILL — memory pressure or force quit)”: 
   whether the kernel killed it for memory (jetsam, `NOTE_EXIT_DETAIL` from the supervisor's kqueue),
@@ -1421,7 +1407,7 @@ What is sent:
   VM refused because its disk is in use exits with status 4: the explanation, no report.
 - Every event includes the last ~200 lines of launcher stderr as breadcrumbs (`[steamac-vm]`,
   `[mvk-*]`, libkrun/virglrenderer warnings, startup stages) and tags: version
-  (`es.fxgam.steamac@<CFBundleShortVersionString>+<git sha>`), environment, and `build_kind` tag:
+  (`io.github.ralsei-x64.Stella@<CFBundleShortVersionString>+<git sha>`), environment, and `build_kind` tag:
   `release` — only a `dist.sh` build with notarization (Info.plist `SteamacDistTeamID`, and the
   running code's signature is Developer ID for that team, checked with `SecCodeCheckValidity`),
   `source-build` — any other `.app` (`bundle.sh`, ad-hoc/re-signed copies, `dist.sh --no-notarize`),
@@ -1546,7 +1532,7 @@ graphics path comes from `game-gfx`; ratings use the last session's graphics pat
 The service still accepts v1 (including previously saved sessions), storing its `gfx`/`env` as NULL.
 Invalid v2 assignments are rejected with HTTP 400; valid ones are sorted by name, last duplicate wins.
 
-Every report is kept on this Mac (`~/Library/Application Support/es.fxgam.steamac/game-stats.json`,
+Every report is kept on this Mac (`~/Library/Application Support/io.github.ralsei-x64.Stella/game-stats.json`,
 20 sessions per game) and listed in **Settings → Games**. Nothing leaves the Mac until **Share
 game statistics** is on: after the first game with a window the launcher asks once, in a window
 beside the VM window that does not take the keyboard or the captured mouse (**Share** / **Don't
@@ -1682,7 +1668,7 @@ disabled (an explicit user action: the SDK and crash handler do not start in tha
 limited to 20 MB (older portions of logs are trimmed first, then the screenshot and SteamOS archive are
 dropped); on an HTTP 413 response, the limit is halved and the report is sent again. After sending, a
 short Report ID is shown (the first 8 characters of the event ID). If sending fails, the folder remains
-at `~/Library/Logs/es.fxgam.steamac/reports/<date>-<ID>/` (`report.json` with the email and description
+at `~/Library/Logs/io.github.ralsei-x64.Stella/reports/<date>-<ID>/` (`report.json` with the email and description
 plus files); the dialog offers **Retry** and **Reveal in Finder**, and the folder can be emailed.
 
 How it works: the supervisor always pipes stderr from both processes and writes it to
