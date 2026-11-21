@@ -12,7 +12,12 @@ assert select(' | chmap-fixed=FL,FR\n | chmap-fixed=' + ','.join(height)) == hei
 assert select(' | chmap-fixed=FL,FR,BAD\n') == []
 assert select(' | chmap-fixed=FL,FR,RL,RR,FC,LFE,SL,SR,RC,FLC,FRC,TC,TFL\n') == []
 assert select(' : values=0,0,0,0\n') == []
-assert config(['FL', 'FR']) is None and config(['MONO']) is None and config([]) is None
+assert config([]) is None
+for positions in (['FL', 'FR'], ['MONO']):
+    stereo = config(positions)
+    assert 'pro-audio' not in stereo and 'audio.channels' not in stereo and 'audio.position' not in stereo
+    assert stereo.count('api.alsa.auto-link = false') == 2
+    assert 'node.group = "steamac-playback"' in stereo and 'node.group = "steamac-capture"' in stereo
 text = config(height)
 assert 'audio.channels = 8' in text and 'audio.position = [ FL FR FC LFE SL SR TSL TSR ]' in text
 assert 'device.profile = "pro-audio"' in text and 'api.acp.disable-pro-audio = false' in text
@@ -20,7 +25,7 @@ assert 'api.alsa.use-chmap = true' in text and 'api.alsa.card.name = "VirtIO Sou
 assert text.count('api.alsa.disable-tsched = false') == 2
 assert text.count('api.alsa.auto-link = false') == 2
 assert 'node.group = "steamac-playback"' in text and 'node.group = "steamac-capture"' in text
-print('audio-layout: stereo stays stock, 5.1.2, malformed/missing maps and policy checks passed')
+print('audio-layout: stereo profile with independent clocks, 5.1.2, malformed/missing maps and policy checks passed')
 surround = 'FL FR RL RR FC LFE SL SR TFL TFR TRL TRR'.split()
 assert select(' | chmap-fixed=' + ','.join(surround)) == surround
 assert 'audio.channels = 12' in config(surround)

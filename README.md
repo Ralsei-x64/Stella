@@ -1846,7 +1846,7 @@ Stutters on the first pass are Metal compilation (~50–100 ms per new pipeline)
   do not imply 5.1.2, and there is no Dolby Atmos encoding. For a multichannel layout, `audio-layout`
   reads the VirtIO ALSA playback map before WirePlumber starts and replaces SteamOS's stereo policy with
   the matching Pro Audio output (timer scheduling, separate playback/capture groups: the host devices
-  have independent clocks); a stereo host keeps the stock SteamOS profile. Playback follows a new
+  have independent clocks); a stereo host keeps the stock SteamOS profile. Its input and output also run on separate clocks so a microphone capture error need not interrupt playback. Playback follows a new
   default or unplugged output at once and rechecks the layout once a second, routing to the physical
   speakers and downmixing missing ones with headroom. Guest channel maps stay fixed for a boot
   (virtio-snd/ALSA cache them): restart the VM to expose more channels or a new layout to games.
