@@ -1,6 +1,6 @@
-# Stella
+# Stella (Steamac Fork)
 
-Stella is a fork of [FX Steam Launcher](https://github.com/fxgl/steamac) for running SteamOS on Apple Silicon. With **Guest display follows the window size** enabled, fullscreen follows the native resolution of the monitor showing Steam. On a MacBook it uses the panel area below the camera. Windowed mode follows the window size.
+Stella is a fork of [FX Steam Launcher](https://github.com/fxgl/steamac) for running SteamOS on Apple Silicon. This is a fork that makes the Steam UI render at the resolution of the host's display. 
 
 On first launch Stella imports FX preferences and reuses the existing SteamOS disk. Shut down FX before opening the same disk in Stella. In Steam’s display settings, enable native resolution for external displays to render Big Picture at the full guest resolution.
 
