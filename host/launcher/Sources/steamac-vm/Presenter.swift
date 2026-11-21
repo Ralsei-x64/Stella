@@ -13,6 +13,7 @@ final class Presenter: DisplaySink {
     var onScanoutResize: ((Int, Int) -> Void)?
     private var lock = os_unfair_lock()
     private var pending = false
+    private var waitingForUpload = false   // main thread
     private(set) var framesShown: UInt64 = 0
     /// Main thread, one-shot: runs after the next guest frame is on screen.
     var onNextFrame: (() -> Void)?
@@ -57,6 +58,21 @@ final class Presenter: DisplaySink {
 
     /// Main thread.
     func consume() {
+        guard !waitingForUpload else { return }
+        if let reader = renderer.readerBlockingUpload() {
+            // Leave ready frames in Scanout: it retains the latest pixels and merges damage
+            // while Metal is behind. AppKit can keep routing input during the wait.
+            waitingForUpload = true
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                reader.waitUntilCompleted()
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.waitingForUpload = false
+                    self.consume()
+                }
+            }
+            return
+        }
         os_unfair_lock_lock(&lock)
         pending = false
         os_unfair_lock_unlock(&lock)
@@ -128,6 +144,7 @@ final class VMView: NSView {
     }
     /// The focused game's cursor, forwarded by the progress agent (`cursor`, `cursor-image`,
     /// `cursor-pos`). Position and size are in the focused game's X window pixels.
+    var cursorScaleHeight = LauncherSettings.CursorSize.small.scaleHeight
     private var guestCursorVisible = false
     private var guestCursorPosition: (x: Int, y: Int)?
     private var guestCursorWindow: (width: Int, height: Int)?
@@ -148,7 +165,7 @@ final class VMView: NSView {
                                       image: CGSize(width: glyph.image.width, height: glyph.image.height),
                                       hotspot: CGPoint(x: glyph.xhot, y: glyph.yhot),
                                       shown: CGRect(x: 0, y: 0, width: window.width, height: window.height),
-                                      parent: .zero, flipped: true)
+                                      parent: .zero, flipped: true, scaleHeight: cursorScaleHeight)
         return "tracking=\(cursorTracking) image=\(glyph.image.width)x\(glyph.image.height)"
             + " hotspot=\(glyph.xhot),\(glyph.yhot) window=\(window.width)x\(window.height)"
             + " size-game-px=\(pixels.size) frame-pt=\(cursorLayer.frame)"
@@ -345,12 +362,13 @@ final class VMView: NSView {
             .last { !$0.isHidden }
     }
 
-    /// Match Gaming Mode's --cursor-scale-height 1440. Gamescope's getTexture
+    /// Match Gaming Mode's --cursor-scale-height. Gamescope's getTexture
     /// first shrinks oversized images to that square (integer hotspots); paint then enlarges
     /// smaller images by desired/contentHeight. Apply that rule in game pixels before view mapping.
     static func cursorFrame(position: CGPoint, window: CGSize, image: CGSize, hotspot: CGPoint,
-                            shown: CGRect, parent: CGRect, flipped: Bool) -> CGRect {
-        let desired = min(256, max(36, 36 * floor(window.height / 1440)))
+                            shown: CGRect, parent: CGRect, flipped: Bool,
+                            scaleHeight: Int = LauncherSettings.CursorSize.small.scaleHeight) -> CGRect {
+        let desired = min(256, max(36, 36 * floor(window.height / CGFloat(scaleHeight))))
         let shrink = image.width > desired || image.height > desired
         let size = shrink ? CGSize(width: desired, height: desired)
                           : CGSize(width: image.width * desired / image.height, height: desired)
@@ -387,7 +405,8 @@ final class VMView: NSView {
                                      window: CGSize(width: window.width, height: window.height),
                                      image: CGSize(width: glyph.image.width, height: glyph.image.height),
                                      hotspot: CGPoint(x: glyph.xhot, y: glyph.yhot), shown: shown,
-                                     parent: metalLayer.bounds, flipped: metalLayer.isGeometryFlipped)
+                                     parent: metalLayer.bounds, flipped: metalLayer.isGeometryFlipped,
+                                     scaleHeight: cursorScaleHeight)
         guard cursorLayer.isHidden || cursorLayer.superlayer !== metalLayer
                 || cursorLayer.frame != frame || (cursorLayer.contents as AnyObject?) !== glyph.image else { return }
         let wasHidden = cursorLayer.isHidden

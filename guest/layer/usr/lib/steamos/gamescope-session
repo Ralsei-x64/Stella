@@ -70,8 +70,15 @@ GAMESCOPE_SESSION_TARGET="${GAMESCOPE_SESSION_TARGET:-gamescope-session.target}"
 WATCH_SERVICE=
 cursor_scale_height=720
 if [[ "${GAMESCOPE_SESSION_TARGET}" == "gamescope-session.target" ]]; then
-  # Keep Steam's pointer at 36 pixels on native 1440p and 2160p displays.
   cursor_scale_height=1440
+  read -r -a boot_args < "${STEAMAC_CMDLINE:-/proc/cmdline}"
+  for arg in "${boot_args[@]}"; do
+    case "$arg" in
+      steamac.cursor_scale_height=1440|steamac.cursor_scale_height=720|steamac.cursor_scale_height=480)
+        cursor_scale_height=${arg#*=} ;;
+      steamac.cursor_scale_height=*) cursor_scale_height=1440 ;;
+    esac
+  done
   GAMESCOPE_ARGS+=(--keep-alive --steam)
   [[ "${STEAMAC_GAMESCOPE_MANGOAPP:-1}" == 1 ]] && GAMESCOPE_ARGS+=(--mangoapp)
 elif [[ "${GAMESCOPE_SESSION_TARGET}" == "plasma-session.target" ]]; then

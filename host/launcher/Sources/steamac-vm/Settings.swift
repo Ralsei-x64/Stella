@@ -26,7 +26,7 @@ final class LauncherSettings: ObservableObject {
         case dpiSource, fixedDPI, fixedWidthMM, fixedHeightMM, refreshRate, followWindowSize, windowWidth, windowHeight,
              windowSizePreset, retinaResolution, metalHUD, superResolution
         // Mouse
-        case autoCaptureGames, gameNames
+        case autoCaptureGames, gameNames, cursorSize
         // Controller
         case virtualPad, padType, dualSensePassthrough, controllerID, additionalPads, swapABXY, stickDeadzone
         // Sound
@@ -40,7 +40,7 @@ final class LauncherSettings: ObservableObject {
         var nextStart: Bool {
             switch self {
             case .openFullscreen, .dpiSource, .fixedDPI, .fixedWidthMM, .fixedHeightMM, .refreshRate,
-                 .windowWidth, .windowHeight, .windowSizePreset, .retinaResolution, .metalHUD, .soundEnabled, .cpus, .memMiB, .sshEnabled,
+                 .windowWidth, .windowHeight, .windowSizePreset, .retinaResolution, .metalHUD, .cursorSize, .soundEnabled, .cpus, .memMiB, .sshEnabled,
                  .sshPort, .network, .lanRemotePlay,
                  .diskImage, .sharedFolder, .sharedMount, .sharedLibrary, .steamClient, .followMacTime, .vulkanDriver, .wmtr, .wmtrLibrary:
                 return true
@@ -53,6 +53,18 @@ final class LauncherSettings: ObservableObject {
     enum DPISource: String, CaseIterable, Identifiable {
         case auto, dpi, mm
         var id: String { rawValue }
+    }
+
+    enum CursorSize: String, CaseIterable {
+        case small, medium, large
+
+        var scaleHeight: Int {
+            switch self {
+            case .small: return 1440
+            case .medium: return 720
+            case .large: return 480
+            }
+        }
     }
 
     enum Latency: String, CaseIterable, Identifiable {
@@ -350,6 +362,7 @@ final class LauncherSettings: ObservableObject {
     /// MetalFX spatial upscaling of the guest picture to the window's pixel size (Renderer); applies now.
     @Published var superResolution = false { didSet { save(.superResolution, superResolution) } }
     // Mouse
+    @Published var cursorSize = CursorSize.small { didSet { save(.cursorSize, cursorSize.rawValue) } }
     @Published var autoCaptureGames = true { didSet { save(.autoCaptureGames, autoCaptureGames) } }
     @Published private(set) var games: [Game] = []
     // Controller
@@ -467,6 +480,7 @@ final class LauncherSettings: ObservableObject {
         bool(.retinaResolution, &retinaResolution)
         bool(.metalHUD, &metalHUD)
         bool(.superResolution, &superResolution)
+        if let size = d.string(forKey: Key.cursorSize.rawValue).flatMap(CursorSize.init(rawValue:)) { cursorSize = size }
         bool(.autoCaptureGames, &autoCaptureGames)
         bool(.virtualPad, &virtualPad)
         if let s = d.string(forKey: Key.padType.rawValue).flatMap(PadType.init(rawValue:)) { padType = s }
@@ -552,6 +566,7 @@ final class LauncherSettings: ObservableObject {
         case .retinaResolution: guard let b else { return false }; retinaResolution = b
         case .metalHUD: guard let b else { return false }; metalHUD = b
         case .superResolution: guard let b else { return false }; superResolution = b
+        case .cursorSize: guard let size = CursorSize(rawValue: text) else { return false }; cursorSize = size
         case .autoCaptureGames: guard let b else { return false }; autoCaptureGames = b
         case .gameNames: return false
         case .virtualPad: guard let b else { return false }; virtualPad = b
@@ -605,6 +620,7 @@ final class LauncherSettings: ObservableObject {
         windowWidth = fresh.windowWidth; windowHeight = fresh.windowHeight; windowSizePreset = fresh.windowSizePreset
         retinaResolution = fresh.retinaResolution
         metalHUD = fresh.metalHUD; superResolution = fresh.superResolution
+        cursorSize = fresh.cursorSize
         autoCaptureGames = fresh.autoCaptureGames
         virtualPad = fresh.virtualPad; padType = fresh.padType; dualSensePassthrough = fresh.dualSensePassthrough
         controllerID = fresh.controllerID; additionalPads = fresh.additionalPads; swapABXY = fresh.swapABXY
@@ -646,7 +662,7 @@ final class LauncherSettings: ObservableObject {
             .fixedWidthMM: dpiSource == .mm ? fixedWidthMM : 0, .fixedHeightMM: dpiSource == .mm ? fixedHeightMM : 0,
             .refreshRate: refreshRate, .windowWidth: windowWidth, .windowHeight: windowHeight,
             .windowSizePreset: windowSizePreset, .retinaResolution: retinaResolution, .metalHUD: metalHUD,
-            .soundEnabled: soundEnabled, .cpus: cpus, .memMiB: memMiB, .sshEnabled: sshEnabled, .sshPort: sshPort,
+            .cursorSize: cursorSize.rawValue, .soundEnabled: soundEnabled, .cpus: cpus, .memMiB: memMiB, .sshEnabled: sshEnabled, .sshPort: sshPort,
             .network: network, .lanRemotePlay: lanRemotePlay,
             .diskImage: diskImage, .sharedFolder: sharedFolder, .sharedMount: sharedMount, .sharedLibrary: sharedLibrary,
             .steamClient: steamClient.rawValue, .followMacTime: followMacTime,

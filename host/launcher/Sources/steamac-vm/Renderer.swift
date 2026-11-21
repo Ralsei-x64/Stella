@@ -12,14 +12,45 @@ final class Renderer {
     private let pipeline: MTLRenderPipelineState
     private let linear: MTLSamplerState
     private let nearest: MTLSamplerState
-    private(set) var texture: MTLTexture?
+    private final class ScanoutTexture {
+        let image: MTLTexture
+        var lastReader: MTLCommandBuffer?
+        // Changes since this particular surface was last updated. A fresh surface needs every pixel.
+        var dirty: DamageRect?
+        init(_ image: MTLTexture) {
+            self.image = image
+            dirty = DamageRect(x0: 0, y0: 0, x1: image.width, y1: image.height)
+        }
+
+        func invalidate(_ rect: DamageRect) { dirty = dirty?.union(rect) ?? rect }
+
+        var busyReader: MTLCommandBuffer? {
+            guard let lastReader, lastReader.status.rawValue < MTLCommandBufferStatus.completed.rawValue else { return nil }
+            return lastReader
+        }
+    }
+
+    private var current: ScanoutTexture?
+    private var spare: ScanoutTexture?
+    var texture: MTLTexture? { current?.image }
     /// Self-test hook: copy the next presented drawable (requires layer.framebufferOnly = false)
     /// and hand back BGRA bytes + size on a Metal completion thread.
     var captureNextDraw: (([UInt8], Int, Int) -> Void)?
     /// Called once, on the main queue, after a drawable has actually reached the screen.
     var onFirstOnScreen: (() -> Void)?
     private var textureGeneration = -1
-    private var lastCommandBuffer: MTLCommandBuffer?
+    /// Reserve a second surface only when Metal is still reading the first. If both are busy
+    /// (or allocation fails), the mailbox can coalesce frames until the older reader completes.
+    func readerBlockingUpload() -> MTLCommandBuffer? {
+        guard let current, let reader = current.busyReader else { return nil }
+        if spare == nil {
+            let t = current.image
+            spare = makeScanoutTexture(width: t.width, height: t.height, format: t.pixelFormat, swizzle: t.swizzle)
+            if spare == nil { return reader }
+        }
+        return spare?.busyReader
+    }
+
     static let layerFormat: MTLPixelFormat = .bgra8Unorm
 
     /// MetalFX spatial upscaling of the guest frame to its on-screen pixel size whenever that is
@@ -91,47 +122,52 @@ final class Renderer {
         }
     }
 
-    /// Upload the damaged part of `frame` (everything if the texture is new).
-    func upload(_ frame: TakenFrame) {
-        let b = frame.buffer
-        var full = frame.damage == nil
-        if texture == nil || textureGeneration != frame.generation
-            || texture!.width != b.width || texture!.height != b.height {
-            let (pf, swizzle) = Renderer.textureLayout(for: b.format)
-            let td = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pf, width: b.width, height: b.height, mipmapped: false)
-            td.usage = .shaderRead
-            td.storageMode = .shared
-            td.swizzle = swizzle
-            texture = device.makeTexture(descriptor: td)
-            textureGeneration = frame.generation
-            full = true
-        }
-        guard let texture else { return }
-        let rect: DamageRect
-        if full {
-            rect = DamageRect(x0: 0, y0: 0, x1: b.width, y1: b.height)
-        } else if let r = frame.damage!.clamped(width: b.width, height: b.height) {
-            rect = r
-        } else {
-            return
-        }
-        // Don't overwrite texels a previous command buffer may still be sampling.
-        lastCommandBuffer?.waitUntilCompleted()
-        let src = b.ptr.advanced(by: rect.y0 * b.stride + rect.x0 * 4)
-        texture.replace(region: MTLRegionMake2D(rect.x0, rect.y0, rect.x1 - rect.x0, rect.y1 - rect.y0),
-                        mipmapLevel: 0, withBytes: src, bytesPerRow: b.stride)
+    private func makeScanoutTexture(width: Int, height: Int, format: MTLPixelFormat,
+                                    swizzle: MTLTextureSwizzleChannels) -> ScanoutTexture? {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width,
+                                                                  height: height, mipmapped: false)
+        descriptor.usage = .shaderRead
+        descriptor.storageMode = .shared
+        descriptor.swizzle = swizzle
+        return device.makeTexture(descriptor: descriptor).map(ScanoutTexture.init)
     }
 
-    /// Use the window queue so the next upload waits for every reader of the shared scanout.
+    /// Main thread, after readerBlockingUpload() returned nil.
+    func upload(_ frame: TakenFrame) {
+        let b = frame.buffer
+        if textureGeneration != frame.generation || texture?.width != b.width || texture?.height != b.height {
+            let (format, swizzle) = Renderer.textureLayout(for: b.format)
+            guard let fresh = makeScanoutTexture(width: b.width, height: b.height, format: format, swizzle: swizzle) else {
+                return
+            }
+            current = fresh
+            spare = nil
+            textureGeneration = frame.generation
+        }
+        let full = DamageRect(x0: 0, y0: 0, x1: b.width, y1: b.height)
+        if let damage = (frame.damage ?? full).clamped(width: b.width, height: b.height) {
+            current?.invalidate(damage)
+            spare?.invalidate(damage)
+        }
+        if current?.busyReader != nil { swap(&current, &spare) }
+        guard let current, let rect = current.dirty else { return }
+        let src = b.ptr.advanced(by: rect.y0 * b.stride + rect.x0 * 4)
+        current.image.replace(region: MTLRegionMake2D(rect.x0, rect.y0, rect.x1 - rect.x0, rect.y1 - rect.y0),
+                              mipmapLevel: 0, withBytes: src, bytesPerRow: b.stride)
+        current.dirty = nil
+    }
+
+    /// Capture and window rendering share a queue, so the last reader fences all earlier reads.
     func submitCapture(_ encode: (MTLCommandBuffer) -> Void) {
         guard let cb = queue.makeCommandBuffer() else { return }
         encode(cb)
         cb.commit()
-        lastCommandBuffer = cb
+        current?.lastReader = cb
     }
 
     func dropTexture() {
-        texture = nil
+        current = nil
+        spare = nil
         textureGeneration = -1
         releaseScaler()
     }
@@ -267,7 +303,7 @@ final class Renderer {
         }
         cb.present(drawable)
         cb.commit()
-        lastCommandBuffer = cb
+        current?.lastReader = cb
     }
 
     /// Render exactly like `draw(to:)` into an offscreen BGRA texture and read it back

@@ -732,6 +732,14 @@ private struct MouseTab: View {
     var body: some View {
         Form {
             Section {
+                Picker(selection: $settings.cursorSize) {
+                    Text("Small").tag(LauncherSettings.CursorSize.small)
+                    Text("Medium").tag(LauncherSettings.CursorSize.medium)
+                    Text("Large").tag(LauncherSettings.CursorSize.large)
+                } label: {
+                    Label2(title: "Cursor size", detail: String(localized: "Pointer size in Steam Gaming Mode."),
+                           now: false, key: .cursorSize)
+                }
                 Toggle(isOn: $settings.autoCaptureGames) {
                     Label2(title: "Capture the mouse in games",
                            detail: String(localized: "While a game has focus, a click captures the pointer (relative motion for mouse-look)."),

@@ -65,6 +65,13 @@ enum GameLayerSelfTest {
                                shown: CGRect(origin: .zero, size: display))
             check(cursor.size == CGSize(width: 36, height: 36), "native display cursor at \(display)")
         }
+        for (size, height) in [(LauncherSettings.CursorSize.medium, 108), (.large, 144)] {
+            let output = CGSize(width: 3456, height: 2160)
+            let cursor = VMView.cursorFrame(position: .zero, window: output, image: CGSize(width: 64, height: 64),
+                                            hotspot: .zero, shown: CGRect(origin: .zero, size: output),
+                                            parent: .zero, flipped: true, scaleHeight: size.scaleHeight)
+            check(cursor.height == CGFloat(height), "selected cursor size \(size)")
+        }
         check(frame(window: CGSize(width: 640, height: 480), image: CGSize(width: 32, height: 32),
                     shown: CGRect(x: 200, y: 150, width: 800, height: 600))
                 == CGRect(x: 600, y: 405, width: 45, height: 45), "windowed / minimum cursor scale")

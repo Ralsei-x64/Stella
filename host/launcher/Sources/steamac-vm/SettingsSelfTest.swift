@@ -101,6 +101,38 @@ enum SettingsSelfTest {
         return failures
     }
 
+    private static func cursorSizeSelfCheck() -> [String] {
+        let domain = "io.github.ralsei-x64.Stella.cursor-test-" + UUID().uuidString
+        let previous = getenv("STEAMAC_DEFAULTS_DOMAIN").map { String(cString: $0) }
+        setenv("STEAMAC_DEFAULTS_DOMAIN", domain, 1)
+        let settings = LauncherSettings()
+        defer {
+            settings.defaults.removePersistentDomain(forName: domain)
+            if let previous { setenv("STEAMAC_DEFAULTS_DOMAIN", previous, 1) }
+            else { unsetenv("STEAMAC_DEFAULTS_DOMAIN") }
+        }
+        var failures: [String] = []
+        if settings.cursorSize != .small { failures.append("cursor size: default") }
+        settings.noteBoot(overrides: [:], autoCapture: nil)
+        do {
+            let args = ["steamac-vm", "--kernel", "/dev/null", "--disk", "/dev/null:ro", "--no-net", "--headless"]
+            for size in LauncherSettings.CursorSize.allCases {
+                settings.cursorSize = size
+                let (options, _) = try Options.resolve(args, settings: settings)
+                if LauncherSettings().cursorSize != size || options.cursorScaleHeight != size.scaleHeight
+                    || settings.restartPending != (size != .small) {
+                    failures.append("cursor size: persistence or next-start value for \(size)")
+                }
+            }
+            let (overridden, _) = try Options.resolve(args + ["--cmdline", "steamac.cursor_scale_height=720"],
+                                                      settings: settings)
+            if overridden.cursorScaleHeight != 720 || settings.cursorSize != .large {
+                failures.append("cursor size: one-boot override")
+            }
+        } catch { failures.append("cursor size: \(error)") }
+        return failures
+    }
+
     static func run(_ o: Options, overrides: [LauncherSettings.Key: String]) -> Never {
         let settings = LauncherSettings.shared
         let profileID = 2147483646
@@ -127,7 +159,7 @@ enum SettingsSelfTest {
             + VMSizing.selfCheck()
             + UpdateChecker.selfCheck() + MacTime.selfCheck() + Options.shareMountSelfCheck() + KeyboardLayoutSync.selfCheck() + ClipboardSync.selfCheck() + GameProfile.selfCheck()
             + SteamControllerRouting.selfCheck() + GenericHIDRouting.selfCheck() + PadPort.coalesceSelfCheck()
-            + sharedLibrarySelfCheck()
+            + sharedLibrarySelfCheck() + cursorSizeSelfCheck()
         let savedVirtualPad = settings.virtualPad
         let savedPadType = settings.padType
         context.needsInputMonitoring = true

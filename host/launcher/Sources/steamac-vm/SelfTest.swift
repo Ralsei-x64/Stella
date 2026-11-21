@@ -2,6 +2,7 @@ import AppKit
 import CKrun
 import Foundation
 import ImageIO
+import Metal
 
 /// `--selftest-display`: drives the real krun_display_backend vtable in-process (exactly the
 /// calls libkrun's GPU thread makes) with synthetic frames in every supported format, then
@@ -80,6 +81,69 @@ enum SelfTest {
         }
     }
 
+    /// Hold two real GPU readers behind an event. Input must still be dispatchable, and queued
+    /// partial updates must eventually show the newest complete frame without modifying either reader.
+    private static func busyScanoutCheck() -> [String] {
+        let display = DisplayBackend(), renderer = Renderer()
+        let presenter = Presenter(display: display, renderer: renderer)
+        let scanout = presenter.scanout
+        _ = scanout.configure(width: 2, height: 1, format: UInt32(KRUN_DISPLAY_FORMAT_B8G8R8A8_UNORM))
+        guard let gate = renderer.device.makeSharedEvent(),
+              let first = renderer.device.makeBuffer(length: 256, options: .storageModeShared),
+              let second = renderer.device.makeBuffer(length: 256, options: .storageModeShared) else {
+            return ["GPU delay test resources"]
+        }
+        func frame(_ a: UInt8, _ b: UInt8, _ damage: DamageRect?) {
+            guard let (id, ptr, _) = scanout.alloc() else { return }
+            memset(ptr, Int32(a), 4)
+            memset(ptr + 4, Int32(b), 4)
+            _ = scanout.present(frameId: id, rect: damage)
+            presenter.consume()
+        }
+        func readAfterGate(_ result: MTLBuffer) {
+            guard let image = renderer.texture else { return }
+            renderer.submitCapture { cb in
+                cb.encodeWaitForEvent(gate, value: 1)
+                let blit = cb.makeBlitCommandEncoder()!
+                blit.copy(from: image, sourceSlice: 0, sourceLevel: 0, sourceOrigin: .init(x: 0, y: 0, z: 0),
+                          sourceSize: .init(width: 2, height: 1, depth: 1), to: result, destinationOffset: 0,
+                          destinationBytesPerRow: 256, destinationBytesPerImage: 256)
+                blit.endEncoding()
+            }
+        }
+        let left = DamageRect(x0: 0, y0: 0, x1: 1, y1: 1), right = DamageRect(x0: 1, y0: 0, x1: 2, y1: 1)
+        let applied = DispatchSemaphore(value: 0)
+        var failures: [String] = []
+        DispatchQueue.main.sync {
+            frame(10, 20, nil)
+            readAfterGate(first)
+            // Bounds the test even if an upload regresses to a synchronous GPU wait.
+            DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { gate.signaledValue = 1 }
+            let start = CACurrentMediaTime()
+            frame(30, 20, left)
+            readAfterGate(second)
+            presenter.onNextFrame = { applied.signal() }
+            frame(30, 70, right)
+            frame(50, 70, left)
+            let elapsed = (CACurrentMediaTime() - start) * 1000
+            log(String(format: "selftest: busy GPU, three scanout updates returned to AppKit in %.2f ms", elapsed))
+            if gate.signaledValue != 0 || presenter.framesShown != 2 {
+                failures.append("scanout blocked AppKit or consumed a busy texture")
+            }
+        }
+        defer { gate.signaledValue = 1 }
+        if applied.wait(timeout: .now() + 4) != .success { return failures + ["queued frame never presented"] }
+        DispatchQueue.main.sync {
+            let pixels = renderer.renderOffscreen(width: 2, height: 1)
+            if pixels[0] != 50 || pixels[4] != 70 { failures.append("lost coalesced scanout damage") }
+            for (buffer, a, b) in [(first, UInt8(10), UInt8(20)), (second, UInt8(30), UInt8(20))] {
+                let bytes = buffer.contents().assumingMemoryBound(to: UInt8.self)
+                if bytes[0] != a || bytes[4] != b { failures.append("overwrote in-flight scanout") }
+            }
+        }
+        return failures
+    }
+
     static func feed(display: DisplayBackend, presenter: Presenter, renderer: Renderer,
                      width W: Int, height H: Int, outDir: String) -> [String] {
         let cb = display.makeCBackend()
@@ -87,6 +151,8 @@ enum SelfTest {
         guard cb.create!(&inst, cb.create_userdata, nil) == 0 else { return ["create failed"] }
         let fb = cb.vtable.basic_framebuffer
         var failures: [String] = []
+
+        failures += busyScanoutCheck()
 
         func present(_ w: Int, _ h: Int, _ fmt: UInt32, square: Bool, damage: krun_rect?) throws {
             var ptr: UnsafeMutablePointer<UInt8>?

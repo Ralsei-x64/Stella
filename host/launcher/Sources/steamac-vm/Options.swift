@@ -116,6 +116,13 @@ struct Options {
     var gvproxyPath: String?
     var frameDumpPath = "steamac-frame.png"
     var mouseMode: MouseMode = .auto
+    var cursorScaleHeight: Int {
+        let prefix = "steamac.cursor_scale_height="
+        let word = cmdline.split(separator: " ").last { $0.hasPrefix(prefix) }
+        let value = word?.dropFirst(prefix.count) ?? ""
+        return LauncherSettings.CursorSize.allCases.first { String($0.scaleHeight) == value }?.scaleHeight
+            ?? LauncherSettings.CursorSize.small.scaleHeight
+    }
     var controlFifo: String?
     var autoCapture: Bool?
     /// The guest gets gamepads over fx.pad, fx.pad2, … (`--no-gamepad`: no ports, no pads this run).
@@ -547,6 +554,10 @@ struct Options {
             func add(_ key: String, _ value: @autoclosure () -> String?) {
                 guard !words.contains(where: { $0.hasPrefix(key + "=") }), let v = value() else { return }
                 o.cmdline += " \(key)=\(v)"
+            }
+            add("steamac.cursor_scale_height", String(settings.cursorSize.scaleHeight))
+            if let override = words.last(where: { $0.hasPrefix("steamac.cursor_scale_height=") }) {
+                overrides[.cursorSize] = "--cmdline " + override
             }
             add("steamac.ssh", o.sshPort == 0 ? "0" : "1")
             add("steamac.steam_client", o.steamClient.rawValue)

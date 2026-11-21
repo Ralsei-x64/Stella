@@ -467,6 +467,7 @@ do {
     let wc = WindowController(title: windowTitle, width: options.displayWidth, height: options.displayHeight,
                               pixelScale: options.pixelScale, renderer: renderer, inputs: inputs, mouseMode: options.mouseMode)
     if let f = Supervisor.windowFrame, !f.isEmpty { wc.window.setFrame(NSRectFromString(f), display: false) }
+    wc.view.cursorScaleHeight = options.cursorScaleHeight
     presenter.view = wc.view
     PerfStats.instance.attach(view: wc.view)
     wc.view.metalLayer.framebufferOnly = false   // SIGUSR1 can read back the presented drawable
