@@ -58,12 +58,18 @@ enum GameLayerSelfTest {
                 == CGRect(x: 594, y: 439, width: 23, height: 23), "flipped Y / scaled hotspot")
         check(frame(window: CGSize(width: 2880, height: 1800), image: CGSize(width: 32, height: 32),
                     shown: CGRect(x: 0, y: 75, width: 1200, height: 750))
-                == CGRect(x: 600, y: 420, width: 30, height: 30), "Retina window/view scale")
+                == CGRect(x: 600, y: 435, width: 15, height: 15), "Retina window/view scale")
+        for display in [CGSize(width: 3456, height: 2160), CGSize(width: 2560, height: 1440),
+                        CGSize(width: 1440, height: 2560)] {
+            let cursor = frame(window: display, image: CGSize(width: 64, height: 64),
+                               shown: CGRect(origin: .zero, size: display))
+            check(cursor.size == CGSize(width: 36, height: 36), "native display cursor at \(display)")
+        }
         check(frame(window: CGSize(width: 640, height: 480), image: CGSize(width: 32, height: 32),
                     shown: CGRect(x: 200, y: 150, width: 800, height: 600))
                 == CGRect(x: 600, y: 405, width: 45, height: 45), "windowed / minimum cursor scale")
-        check(frame(window: CGSize(width: 1000, height: 10000), image: CGSize(width: 32, height: 32),
-                    shown: CGRect(x: 0, y: 0, width: 1000, height: 10000)).height == 256,
+        check(frame(window: CGSize(width: 1000, height: 14400), image: CGSize(width: 32, height: 32),
+                    shown: CGRect(x: 0, y: 0, width: 1000, height: 14400)).height == 256,
               "maximum cursor scale")
         check(frame(window: hd, image: CGSize(width: 256, height: 128),
                     hotspot: CGPoint(x: 128, y: 64), shown: letterbox)

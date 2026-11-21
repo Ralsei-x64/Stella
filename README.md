@@ -1733,8 +1733,8 @@ The launcher parses these in `Progress.swift` and forwards them through `Window.
 1000. It is shown only while a game layer is visible and the guest cursor is visible and its position
 is known; it is excluded from the game-layer and Metal HUD policies and re-attached if wmtr removes
 sublayers. The bitmap becomes a premultiplied-first `CGImage`. Before mapping into the view, the
-bitmap and hotspot are scaled like gamescope's `--cursor-scale-height 720`: for game-window height H,
-the desired size is `clamp(36 * floor(H / 720), 36, 256)` pixels. This includes gamescope's square
+bitmap and hotspot are scaled like gamescope's `--cursor-scale-height 1440`: for game-window height H,
+the desired size is `clamp(36 * floor(H / 1440), 36, 256)` pixels. This includes gamescope's square
 downsize when either bitmap dimension exceeds the desired size, with integer-truncated hotspot
 coordinates; otherwise its uniform scale is at least 1, based on desired size / bitmap height.
 The layer maps the X window position into the active remoted game layer's displayed drawable

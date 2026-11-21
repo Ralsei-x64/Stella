@@ -345,12 +345,12 @@ final class VMView: NSView {
             .last { !$0.isHidden }
     }
 
-    /// gamescope's GetDesiredSize clamps 36 * floor(H / 720) to 36...256. getTexture
+    /// Match Gaming Mode's --cursor-scale-height 1440. Gamescope's getTexture
     /// first shrinks oversized images to that square (integer hotspots); paint then enlarges
     /// smaller images by desired/contentHeight. Apply that rule in game pixels before view mapping.
     static func cursorFrame(position: CGPoint, window: CGSize, image: CGSize, hotspot: CGPoint,
                             shown: CGRect, parent: CGRect, flipped: Bool) -> CGRect {
-        let desired = min(256, max(36, 36 * floor(window.height / 720)))
+        let desired = min(256, max(36, 36 * floor(window.height / 1440)))
         let shrink = image.width > desired || image.height > desired
         let size = shrink ? CGSize(width: desired, height: desired)
                           : CGSize(width: image.width * desired / image.height, height: desired)

@@ -59,7 +59,6 @@ GAMESCOPE_ARGS=(
   --backend "${STEAMAC_GAMESCOPE_BACKEND:-drm}"
   -T "$stats"
   --cursor-hotspot 5,3 --cursor /usr/share/steamos/steamos-cursor.png
-  --cursor-scale-height 720
   --default-touch-mode 4
   --fade-out-duration 200
   --hide-cursor-delay 3000
@@ -69,7 +68,10 @@ GAMESCOPE_ARGS=(
 
 GAMESCOPE_SESSION_TARGET="${GAMESCOPE_SESSION_TARGET:-gamescope-session.target}"
 WATCH_SERVICE=
+cursor_scale_height=720
 if [[ "${GAMESCOPE_SESSION_TARGET}" == "gamescope-session.target" ]]; then
+  # Keep Steam's pointer at 36 pixels on native 1440p and 2160p displays.
+  cursor_scale_height=1440
   GAMESCOPE_ARGS+=(--keep-alive --steam)
   [[ "${STEAMAC_GAMESCOPE_MANGOAPP:-1}" == 1 ]] && GAMESCOPE_ARGS+=(--mangoapp)
 elif [[ "${GAMESCOPE_SESSION_TARGET}" == "plasma-session.target" ]]; then
@@ -78,6 +80,7 @@ elif [[ "${GAMESCOPE_SESSION_TARGET}" == "plasma-session.target" ]]; then
   # gamescope, and with it the session, ends when Plasma does.
   WATCH_SERVICE=steamac-nested-desktop.service
 fi
+GAMESCOPE_ARGS+=(--cursor-scale-height "$cursor_scale_height")
 
 # shellcheck disable=SC2206 # intentional word splitting of the override
 GAMESCOPE_ARGS+=(${STEAMAC_GAMESCOPE_EXTRA_ARGS:-})
