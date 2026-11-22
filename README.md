@@ -1154,6 +1154,9 @@ and only on a DXMT-enabled boot. The old x86-64-only payload cannot initialize w
 ARM64EC Wine; both the native PE DLLs and the native Unix library are required.
 Eligible titles are installed Windows games (`libraryfolders.vdf` and `appcache/appinfo.vdf`:
 type game/demo/application, oslist with windows but not linux) without a user-owned tool choice.
+For a game already pinned to stock Proton 11 ARM64 in Steam, select the native DXMT tool in
+**Properties → Compatibility** when enabling DXMT for that game. Returning the picker to its previous
+selection restores the stock renderer.
 Every other game keeps Steam's default tool, **Proton 11.0 ARM64**, with DXVK/vkd3d-proton on Venus.
 The old blanket mappings are removed on the first Steam start; subsequent profile changes or
 newly installed games are applied at the next Steam start. User edits in Steam remain untouched.
@@ -1218,8 +1221,7 @@ The script installs `meson ninja cmake pkgconf zstd`. If Metal tools are unavail
 `air_{msad,samplepos,tessellation}.air` built from the same pinned sources.
 
 ```sh
-host/dxmt/build.sh fetch llvm native host pe client payload  # default steps, in order
-host/dxmt/build.sh pe-arm64ec client-arm64 payload-arm64ec    # add native Proton 11 support
+./build.sh dxmt                                            # build the host and both Proton guest payloads
 scripts/build-image.sh layer                               # include the guest payload
 host/launcher/build.sh                                     # bundle executor + refreshed layer
 ```
@@ -1230,8 +1232,9 @@ host/launcher/build.sh                                     # bundle executor + r
 `work/out/host/lib/libwmtr_host.dylib`. `pe` cross-builds the four DLLs into `work/out/dxmt-pe`;
 `client` builds/tests `wmtr/build/x86_64-linux/winemetal.so` in Docker; `payload` stages
 `work/out/dxmt/{x86_64-windows,x86_64-unix}` for `/usr/lib/steamac/dxmt/` in the guest layer.
-Steps can be rerun individually; `host/dxmt/build.sh` with no arguments runs the default x86-64 steps.
-The three optional ARM64EC steps use the pinned Wine 11.2 build tools and upstream
+The top-level DXMT build also runs `pe-arm64ec client-arm64 payload-arm64ec` for Proton 11.
+Individual steps can be rerun with `host/dxmt/build.sh`. Pass `fetch llvm native host pe client payload` for an x86-64-only build.
+The three ARM64EC steps use the pinned Wine 11.2 build tools and upstream
 `build-arm64ec.txt`, build/test the Unix client in a native ARM64 container, and stage
 `work/out/dxmt/{aarch64-windows,aarch64-unix}` alongside the x86-64 payload. The host executor
 is shared by both architectures. Packaging and mapping checks:

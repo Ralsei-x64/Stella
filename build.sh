@@ -7,7 +7,7 @@
 #   ./build.sh host       only the macOS side (MoltenVK, KosmicKrisp on macOS 26+, libepoxy,
 #                         virglrenderer, libkrun, launcher)
 #   ./build.sh guest      only the guest side (kernel, rootfs, Mesa, initramfs, layer, disk)
-#   ./build.sh dxmt       DXMT host executor + guest dlls/unixlib (requires Rosetta and linux/amd64 Docker)
+#   ./build.sh dxmt       DXMT host executor and both Proton guest payloads (Rosetta, arm64 + amd64 Docker)
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 

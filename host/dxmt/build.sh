@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Build the DXMT graphics path from pinned sources: the host executor library and the guest payload.
 #
-#   host/dxmt/build.sh [step...]     steps: fetch llvm native host pe client payload (default: all, in order)
+#   host/dxmt/build.sh               host executor and both Proton guest payloads
 #   host/dxmt/build.sh pe-arm64ec client-arm64 payload-arm64ec
-#                                  optional native Proton 11 ARM64EC guest payload (same host executor)
+#                                  build only the native Proton 11 guest payload after fetch
 #   host/dxmt/build.sh clean         drop work/build/dxmt* and the unpacked source (keeps work/cache downloads
 #                                    and the installed LLVM 15 under work/out/host/llvm15)
 #
@@ -261,7 +261,7 @@ if [ "${1:-}" = clean ]; then
     exit 0
 fi
 steps=("$@")
-[ ${#steps[@]} -gt 0 ] || steps=(fetch llvm native host pe client payload)
+[ ${#steps[@]} -gt 0 ] || steps=(fetch llvm native host pe client payload pe-arm64ec client-arm64 payload-arm64ec)
 # fetch, client and payload also run on a Linux host (the guest half of a build split over two machines)
 case " ${steps[*]} " in *" llvm "*|*" native "*|*" host "*|*" pe "*|*" pe-arm64ec "*)
     for dep in $BREW_DEPS; do
