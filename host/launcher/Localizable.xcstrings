@@ -2782,6 +2782,22 @@
         }
       }
     },
+    "Dragon’s Dogma 2 with KosmicKrisp" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dragon’s Dogma 2 с KosmicKrisp"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dragon’s Dogma 2 使用 KosmicKrisp"
+          }
+        }
+      }
+    },
     "DualSense" : {
       "localizations" : {
         "ru" : {
@@ -3104,6 +3120,22 @@
         }
       }
     },
+    "For this game" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для этой игры"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适用于此游戏"
+          }
+        }
+      }
+    },
     "Frame rate" : {
       "localizations" : {
         "ru" : {
@@ -3244,6 +3276,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "我的预设…"
+          }
+        }
+      }
+    },
+    "PRAGMATA with SM 6.6 (experimental)" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PRAGMATA с SM 6.6 (экспериментальный)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PRAGMATA 使用 SM 6.6（实验性）"
           }
         }
       }
@@ -3488,6 +3536,22 @@
         }
       }
     },
+    "SteamOS enables feature level 12.1 and shader model 6.6 when the driver supports 64-bit atomics on buffers and images." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SteamOS включает уровень возможностей 12.1 и модель шейдеров 6.6, если драйвер поддерживает 64-битные атомарные операции с буферами и изображениями."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当驱动支持对缓冲区和图像执行 64 位原子操作时，SteamOS 会启用功能级别 12.1 和着色器模型 6.6。"
+          }
+        }
+      }
+    },
     "Steamac GitHub Repo" : {
       "localizations" : {
         "ru" : {
@@ -3552,6 +3616,22 @@
         }
       }
     },
+    "The Exit 8 with KosmicKrisp" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Exit 8 с KosmicKrisp"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Exit 8 使用 KosmicKrisp"
+          }
+        }
+      }
+    },
     "Titanfall 2 with DXMT" : {
       "localizations" : {
         "ru" : {
@@ -3564,6 +3644,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Titanfall 2 使用 DXMT"
+          }
+        }
+      }
+    },
+    "Titanfall 2 with DXMT (microphone off)" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titanfall 2 через DXMT (микрофон отключён)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titanfall 2 使用 DXMT（关闭麦克风）"
           }
         }
       }
@@ -3596,6 +3692,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请使用支持的 名称=值 赋值，总长度不超过 256 个字符。"
+          }
+        }
+      }
+    },
+    "Uses the settings from local launch tests. The game may still show its unsupported GPU warning." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Используются настройки из локальных тестовых запусков. Игра может по-прежнему предупреждать, что видеокарта не поддерживается."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用本机启动测试中的设置。游戏仍可能提示显卡不受支持。"
           }
         }
       }

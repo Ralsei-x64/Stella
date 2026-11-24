@@ -19,6 +19,10 @@ struct GameCompatibilityEditor: View {
     }
 
     private var presets: [CompatibilityPreset] { settings.compatibilityPresets(for: game.appid) }
+    private func presetRow(_ preset: CompatibilityPreset) -> some View {
+        Text(verbatim: preset.name).tag(preset.id)
+            .disabled(preset.profile.driver.flatMap(LauncherSettings.VulkanDriver.init(rawValue:))?.unavailableReason != nil)
+    }
     private var valid: Bool { GameProfile.validEnv(draft.env) }
     private var selectedPreset: String {
         guard valid else { return "" }
@@ -39,10 +43,12 @@ struct GameCompatibilityEditor: View {
                     chosenPreset = id
                 })) {
                     if selectedPreset.isEmpty { Text("Custom settings").tag("") }
-                    ForEach(CompatibilityPreset.builtIns(for: game.appid)) { preset in
-                        Text(verbatim: preset.name).tag(preset.id)
-                            .disabled(preset.profile.driver.flatMap(LauncherSettings.VulkanDriver.init(rawValue:))?.unavailableReason != nil)
+                    let titlePresets = CompatibilityPreset.forGame(game.appid)
+                    if !titlePresets.isEmpty {
+                        Section("For this game") { ForEach(titlePresets, content: presetRow) }
+                        Divider()
                     }
+                    ForEach(CompatibilityPreset.general, content: presetRow)
                     if !settings.savedPresets.isEmpty {
                         Section("My presets") {
                             ForEach(presets.filter { $0.id.hasPrefix("saved.") }) { preset in
@@ -54,8 +60,8 @@ struct GameCompatibilityEditor: View {
                 Button("My presets…") { presetName = ""; editingPresets = true }
                     .popover(isPresented: $editingPresets) { personalPresets }
             }.padding(.horizontal, 20).padding(.vertical, 10)
-            if selectedPreset == "sm66" && game.appid == 2776090 {
-                Text("Verified in gameplay on an M4 Max using KosmicKrisp.")
+            if let detail = presets.first(where: { $0.id == selectedPreset })?.detail {
+                Text(verbatim: detail)
                     .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 20).padding(.bottom, 8)
             }
             Picker("Compatibility controls", selection: $runtime) {

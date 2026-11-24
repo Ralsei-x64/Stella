@@ -485,6 +485,23 @@ enum SettingsSelfTest {
                 window.sendEvent(down)
                 return true
             }
+            @MainActor func selectPreset(_ preset: CompatibilityPreset, from popup: NSButton) async {
+                let center = NotificationCenter.default
+                let observer = center.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: nil) { note in
+                    guard let menu = note.object as? NSMenu, menu === popup.menu else { return }
+                    let index = menu.indexOfItem(withTitle: preset.name)
+                    DispatchQueue.main.async {
+                        menu.cancelTracking()
+                        if index >= 0 { menu.performActionForItem(at: index) }
+                    }
+                }
+                let timer = Timer(timeInterval: 1, repeats: false) { _ in popup.menu?.cancelTracking() }
+                RunLoop.main.add(timer, forMode: .common)
+                popup.performClick(nil)
+                timer.invalidate()
+                center.removeObserver(observer)
+                try? await Task.sleep(for: .milliseconds(250))
+            }
             Task { @MainActor in
                 defer { done() }
                 let presetName = "Self-test " + UUID().uuidString
@@ -509,21 +526,7 @@ enum SettingsSelfTest {
                     if value == shaderPreset.profile.env {
                         guard let popup = popups(in: sheet.contentView).first(where: { $0.title == String(localized: "Custom settings") })
                         else { failures.append("profiles: preset picker missing"); return }
-                        let center = NotificationCenter.default
-                        let observer = center.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: nil) { note in
-                            guard let menu = note.object as? NSMenu, menu === popup.menu else { return }
-                            let index = menu.indexOfItem(withTitle: shaderPreset.name)
-                            DispatchQueue.main.async {
-                                menu.cancelTracking()
-                                if index >= 0 { menu.performActionForItem(at: index) }
-                            }
-                        }
-                        let timer = Timer(timeInterval: 1, repeats: false) { _ in popup.menu?.cancelTracking() }
-                        RunLoop.main.add(timer, forMode: .common)
-                        popup.performClick(nil)
-                        timer.invalidate()
-                        center.removeObserver(observer)
-                        try? await Task.sleep(for: .milliseconds(250))
+                        await selectPreset(shaderPreset, from: popup)
                         guard field.stringValue == value else { failures.append("profiles: preset did not populate the editor"); return }
                         capture("compatibility", SettingsWindowController.snapshot(sheet))
                     } else {
@@ -540,6 +543,28 @@ enum SettingsSelfTest {
                     if apply { expected = value }
                     if LauncherSettings().profile(for: profileID).env != expected { failures.append("profiles: sheet persistence") }
                 }
+
+                // Exercise the title-specific menu section without writing a real game's profile.
+                guard LauncherSettings.VulkanDriver.kosmickrisp.unavailableReason == nil else { return }
+                let game = GameStatsStore.Game(appid: 3357650, name: "PRAGMATA")
+                guard let titlePreset = CompatibilityPreset.forGame(game.appid).first else {
+                    failures.append("profiles: missing PRAGMATA preset"); return
+                }
+                let editor = GameCompatibilityEditor(game: game, profile: GameProfile(), recommendations: GameRecommendations())
+                    .environmentObject(settings)
+                let window = NSWindow(contentViewController: NSHostingController(rootView: editor))
+                window.isReleasedWhenClosed = false
+                window.makeKeyAndOrderFront(nil)
+                defer { window.close() }
+                try? await Task.sleep(for: .milliseconds(450))
+                guard let picker = popups(in: window.contentView).first(where: { $0.title == String(localized: "Stella defaults") })
+                else { failures.append("profiles: title preset picker missing"); return }
+                await selectPreset(titlePreset, from: picker)
+                let field = views(window.contentView).compactMap { $0 as? NSTextField }.first { $0.isEditable }
+                if picker.title != titlePreset.name || field?.stringValue != titlePreset.profile.env {
+                    failures.append("profiles: selecting the PRAGMATA preset did not load its launch options")
+                }
+                capture("compatibility-title", SettingsWindowController.snapshot(window))
             }
         }
 

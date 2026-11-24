@@ -21,7 +21,16 @@ For compatible Windows games, Proton provides the Windows environment inside Ste
 
 ## Per-game compatibility
 
-Open **Settings → Games → Compatibility…** beside a title. Choose a preset, inspect its settings, then click **Apply**. For example, the *Lay of the Land* preset reports Shader Model 6.6 and exposes the driver’s 64-bit atomics. This combination was verified in gameplay on an M4 Max using KosmicKrisp. Other games keep their own settings.
+Open **Settings → Games → Compatibility…** beside a title. Open **Preset** and look under **For this game** for its compatibility settings. Choose a preset, inspect the values, then click **Apply**. Each title keeps its own settings.
+
+| Game | What its preset does |
+| --- | --- |
+| Titanfall 2 | Uses DXMT with KosmicKrisp. A second preset disables microphone capture for stalls when the game opens voice input. Game audio stays on. |
+| DOOM Eternal | Uses Vulkan with KosmicKrisp and reports an AMD Radeon RX 6800 XT. Stella’s SteamOS launcher starts the game executable directly. |
+| Lay of the Land | Uses Vulkan with KosmicKrisp, exposes 64-bit atomics, and reports Shader Model 6.6. This configuration rendered a world on an M4 Max. |
+| PRAGMATA | Uses Vulkan with KosmicKrisp, exposes 64-bit atomics, and reports feature level 12.1 and Shader Model 6.6. This preset is experimental. The game may still show its unsupported GPU warning. |
+| The Exit 8 | Selects Vulkan with KosmicKrisp, the combination used in local play sessions. |
+| Dragon’s Dogma 2 | Selects Vulkan with KosmicKrisp. SteamOS enables feature level 12.1 and Shader Model 6.6 after checking the driver for 64-bit buffer and image atomics. |
 
 - **Graphics** selects the renderer, Vulkan driver, reported GPU identity, shader model, feature level, and 64-bit atomics. Changing the reported GPU identity can help with an adapter check. Rendering still depends on the features the driver implements.
 - **Runtime** controls the DirectX 12 frame-rate limit, DXVK performance overlay, microphone access, and Proton logging.

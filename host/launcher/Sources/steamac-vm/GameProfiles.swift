@@ -110,9 +110,24 @@ struct GameProfile: Codable, Equatable {
         }
         edited.setOption("VKD3D_DISABLE_EXTENSIONS", to: nil)
         if edited.option("VKD3D_DISABLE_EXTENSIONS") != nil { failures.append("profiles: empty and inherited are distinct") }
-        let lay = CompatibilityPreset.builtIns(for: 2776090).first { $0.id == "sm66" }
-        if lay?.profile.guestEnv != "VKD3D_DISABLE_EXTENSIONS= VKD3D_SHADER_MODEL=6_6" {
-            failures.append("profiles: Lay of the Land preset differs from the tested launch")
+        let shader66 = "VKD3D_DISABLE_EXTENSIONS= VKD3D_SHADER_MODEL=6_6"
+        let titleProfiles: [(Int, [GameProfile])] = [
+            (1237970, [GameProfile(gfx: "dxmt", driver: "kosmickrisp"),
+                       GameProfile(gfx: "dxmt", driver: "kosmickrisp", env: "STEAMAC_DISABLE_MIC=1")]),
+            (782330, [GameProfile(gfx: "vulkan", driver: "kosmickrisp", gpuVendor: .amd)]),
+            (2776090, [GameProfile(gfx: "vulkan", driver: "kosmickrisp", env: shader66)]),
+            (3357650, [GameProfile(gfx: "vulkan", driver: "kosmickrisp",
+                                   env: "VKD3D_DISABLE_EXTENSIONS= VKD3D_FEATURE_LEVEL=12_1 VKD3D_SHADER_MODEL=6_6")]),
+            (2653790, [GameProfile(gfx: "vulkan", driver: "kosmickrisp")]),
+            (2054970, [GameProfile(gfx: "vulkan", driver: "kosmickrisp")]),
+            (42, [])
+        ]
+        for (appid, expected) in titleProfiles {
+            let presets = CompatibilityPreset.builtIns(for: appid)
+            if CompatibilityPreset.forGame(appid).map(\.profile) != expected
+                || Set(presets.map(\.id)).count != presets.count {
+                failures.append("profiles: unexpected presets for \(appid)")
+            }
         }
         let progress = BootProgress()
         var event: GuestGameEvent?
@@ -129,27 +144,53 @@ struct CompatibilityPreset: Identifiable {
     let id: String
     let name: String
     let profile: GameProfile
+    var detail: String?
 
-    static func builtIns(for appid: Int) -> [Self] {
-        var presets = [Self(id: "default", name: String(localized: "Stella defaults"), profile: GameProfile())]
+    private static let shader66 = "VKD3D_DISABLE_EXTENSIONS= VKD3D_SHADER_MODEL=6_6"
+    private static let vulkan = GameProfile(gfx: "vulkan", driver: "kosmickrisp")
+
+    static func forGame(_ appid: Int) -> [Self] {
         switch appid {
         case 1237970:
-            presets.append(Self(id: "titanfall", name: String(localized: "Titanfall 2 with DXMT"),
-                                profile: GameProfile(gfx: "dxmt", driver: "kosmickrisp")))
+            return [
+                Self(id: "titanfall", name: String(localized: "Titanfall 2 with DXMT"),
+                     profile: GameProfile(gfx: "dxmt", driver: "kosmickrisp")),
+                Self(id: "titanfall-no-mic", name: String(localized: "Titanfall 2 with DXMT (microphone off)"),
+                     profile: GameProfile(gfx: "dxmt", driver: "kosmickrisp", env: "STEAMAC_DISABLE_MIC=1"))
+            ]
         case 782330:
-            presets.append(Self(id: "doom", name: String(localized: "DOOM Eternal with KosmicKrisp"),
-                                profile: GameProfile(gfx: "vulkan", driver: "kosmickrisp")))
-        default: break
+            return [Self(id: "doom", name: String(localized: "DOOM Eternal with KosmicKrisp"),
+                         profile: GameProfile(gfx: "vulkan", driver: "kosmickrisp", gpuVendor: .amd))]
+        case 2776090:
+            return [Self(id: "lay-of-the-land", name: String(localized: "Lay of the Land with SM 6.6"),
+                         profile: GameProfile(gfx: "vulkan", driver: "kosmickrisp", env: shader66),
+                         detail: String(localized: "Verified in gameplay on an M4 Max using KosmicKrisp."))]
+        case 3357650:
+            return [Self(id: "pragmata", name: String(localized: "PRAGMATA with SM 6.6 (experimental)"),
+                         profile: GameProfile(gfx: "vulkan", driver: "kosmickrisp",
+                                              env: "VKD3D_DISABLE_EXTENSIONS= VKD3D_FEATURE_LEVEL=12_1 VKD3D_SHADER_MODEL=6_6"),
+                         detail: String(localized: "Uses the settings from local launch tests. The game may still show its unsupported GPU warning."))]
+        case 2653790:
+            return [Self(id: "the-exit-8", name: String(localized: "The Exit 8 with KosmicKrisp"), profile: vulkan)]
+        case 2054970:
+            // Empty env keeps steam-title-defaults' hardware check in charge of the DirectX overrides.
+            return [Self(id: "dragons-dogma-2", name: String(localized: "Dragon’s Dogma 2 with KosmicKrisp"), profile: vulkan,
+                         detail: String(localized: "SteamOS enables feature level 12.1 and shader model 6.6 when the driver supports 64-bit atomics on buffers and images."))]
+        default:
+            return []
         }
-        presets += [
-            Self(id: "sm66", name: appid == 2776090 ? String(localized: "Lay of the Land with SM 6.6")
-                                                    : String(localized: "DirectX 12 with SM 6.6"),
-                 profile: GameProfile(env: "VKD3D_DISABLE_EXTENSIONS= VKD3D_SHADER_MODEL=6_6")),
-            Self(id: "dxvk", name: String(localized: "DirectX 11 with DXVK"), profile: GameProfile(gfx: "vulkan")),
-            Self(id: "dxmt", name: String(localized: "DirectX 11 with DXMT"), profile: GameProfile(gfx: "dxmt")),
-            Self(id: "logging", name: String(localized: "Proton diagnostics"), profile: GameProfile(env: "PROTON_LOG=1"))
-        ]
-        return presets
+    }
+
+    static let general = [
+        Self(id: "default", name: String(localized: "Stella defaults"), profile: GameProfile()),
+        Self(id: "sm66", name: String(localized: "DirectX 12 with SM 6.6"), profile: GameProfile(env: shader66)),
+        Self(id: "dxvk", name: String(localized: "DirectX 11 with DXVK"), profile: GameProfile(gfx: "vulkan")),
+        Self(id: "dxmt", name: String(localized: "DirectX 11 with DXMT"), profile: GameProfile(gfx: "dxmt")),
+        Self(id: "logging", name: String(localized: "Proton diagnostics"), profile: GameProfile(env: "PROTON_LOG=1"))
+    ]
+
+    static func builtIns(for appid: Int) -> [Self] {
+        forGame(appid) + general
     }
 }
 
