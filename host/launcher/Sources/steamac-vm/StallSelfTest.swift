@@ -109,10 +109,9 @@ enum StallSelfTest {
         view.onReport = { log("stall selftest: Report… link activated") }
         var stallDiagnostic: StallMonitor.Diagnostic?
         monitor.onNotResponding = { stallDiagnostic = $0 }
-        let working = String(localized: "Still working — loading or compiling shaders…")
-        let sampleCPU = "CPUVALUE"
+        let working = String(localized: "Don’t Panic!")
         let sampleSeconds = 987   // < 1000: no digit grouping in the localized template
-        let workingDetail = String(localized: "VM CPU \(sampleCPU) cores · guest alive")
+        let workingDetail = String(localized: "If the screen is frozen, the VM is most likely compiling shaders or loading content.")
         func expectHidden(_ what: String) -> String? {
             !monitor.indicatorShown && !view.shown ? nil : "\(what): indicator should be hidden"
         }
@@ -120,7 +119,6 @@ enum StallSelfTest {
             guard monitor.indicatorShown, view.shown else { return "indicator should be shown" }
             guard view.currentTitle == title else { return "title \"\(view.currentTitle)\", expected \"\(title)\"" }
             let pattern = "^" + NSRegularExpression.escapedPattern(for: detail)
-                .replacingOccurrences(of: sampleCPU, with: "[0-9]+\\.[0-9]")
                 .replacingOccurrences(of: "\(sampleSeconds)", with: "[0-9]+") + "$"
             return view.currentDetail.range(of: pattern, options: .regularExpression) != nil
                 ? nil : "detail \"\(view.currentDetail)\" does not match \"\(detail)\""
@@ -174,7 +172,7 @@ enum StallSelfTest {
                 monitor.gameFocused = true
                 Thread.sleep(forTimeInterval: 6)
             }, wait: 0.4) {
-                expectShown(title: working, detail: String(localized: "VM CPU \(sampleCPU) cores"))
+                expectShown(title: working, detail: workingDetail)
                     ?? (stallDiagnostic == nil ? nil : "host polling gap incorrectly reported as a guest hang")
             },
             Step(name: "09b-host-queue-heartbeat-back", action: {
@@ -276,6 +274,19 @@ enum StallSelfTest {
                 failures += DispatchQueue.main.sync {
                     pixelChecks(step.name, img, drawable: wc.overlay.isHidden ? shot.0 : nil, view)
                 }
+                if step.name == "05-game-idle-2.5s-shown" || step.name == "06-resized" {
+                    failures += DispatchQueue.main.sync {
+                        var errors = materialChecks(img, view)
+                        if let screen = wc.windowServerImage(), hasWindowPixels(screen) {
+                            do { try PNG.write(screen, to: "\(outDir)/stall-\(step.name)-screen.png") }
+                            catch { errors.append("writing WindowServer image: \(error)") }
+                            errors += materialChecks(screen, view).map { "WindowServer: \($0)" }
+                        } else {
+                            log("stall selftest: \(step.name) skipped live material check: WindowServer returned no window pixels")
+                        }
+                        return errors.map { "\(step.name): \($0)" }
+                    }
+                }
                 log("stall selftest: \(step.name) indicator=\(view.shown ? "shown" : "hidden")"
                     + (view.shown ? " \"\(view.currentTitle)\" / \"\(view.currentDetail)\"" : "") + " -> \(path)")
             }
@@ -292,7 +303,72 @@ enum StallSelfTest {
         exit(0)
     }
 
-    /// Shown: the card's padding is dark (card over the frame), the spinner has blue pixels and the
+    /// An offscreen window can yield a valid-sized, fully transparent WindowServer image,
+    /// including its title bar. The separate drawable checks still run in that case.
+    static func hasWindowPixels(_ image: CGImage) -> Bool {
+        guard let ctx = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let pixel = ctx.data?.assumingMemoryBound(to: UInt8.self) else { return false }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+        return pixel[3] > 0
+    }
+
+    /// The blue/white boundary runs vertically through the card. Probe its empty lower
+    /// padding and both straight rims, in the drawable dump and the actual Metal window.
+    static func materialChecks(_ image: CGImage, _ view: StallIndicatorView) -> [String] {
+        guard let pixels = OverlaySelfTest.pixels(image) else { return ["cannot read card material"] }
+        let card = view.cardFrame
+        let scale = CGFloat(image.width) / view.bounds.width
+        let k = card.width / 573
+        func red(_ x: CGFloat, _ y: CGFloat) -> Int {
+            let col = max(0, min(image.width - 1, Int(x * scale)))
+            let row = max(0, min(image.height - 1, image.height - 1 - Int(y * scale)))
+            return Int(pixels[(row * image.width + col) * 4])
+        }
+        let x = card.midX, y = card.minY + 11 * k, halfPixel = 0.5 / scale
+        let left = red(x - 85 * k, y), right = red(x + 85 * k, y)
+        let a = red(x - halfPixel, y), b = red(x + halfPixel, y)
+        var errors: [String] = []
+        // The native HUD material tints the backdrop. Check the edge relative to its
+        // local contrast, then verify the exact same guest edge remains sharp outside.
+        let contrast = right - left
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency &&
+            (contrast < 8 || a - left < contrast / 5 || right - b < contrast / 5 || abs(b - a) > contrast / 2) {
+            errors.append("backdrop did not soften the color boundary (\([left, a, b, right]))")
+        }
+        let outsideY = card.maxY + 15 * k
+        // A resized Metal scanout linearly samples between the two boundary pixels.
+        // Sample just beyond that footprint while staying well inside the blur diameter.
+        let outsideEdge = red(x + 3 * halfPixel, outsideY) - red(x - 3 * halfPixel, outsideY)
+        let outsideContrast = red(x + 20 * k, outsideY) - red(x - 20 * k, outsideY)
+        if outsideContrast < 80 || outsideEdge < outsideContrast * 3 / 4 {
+            errors.append("card blur escaped its silhouette (edge \(outsideEdge), contrast \(outsideContrast))")
+        }
+        let rimX = card.minX + card.width / 4
+        for (edge, inward) in [(card.minY, CGFloat(1)), (card.maxY, CGFloat(-1))] {
+            if red(rimX, edge + inward * halfPixel) > 8 {
+                errors.append("inner shadow shows through the black outline at y=\(edge)")
+            }
+            let peak = (1...4).map { red(rimX, edge + inward * CGFloat($0) * k) }.max()!
+            if peak < red(rimX, edge + inward * 10 * k) + 12 {
+                errors.append("missing inner shadow at y=\(edge)")
+            }
+        }
+        // The black stroke sits over the highlights. Allow partial coverage on
+        // fractional pixels and check that the fill returns just inside the rim.
+        let inside = red(card.maxX - 8 * k, card.midY)
+        let edge = (0...Int(ceil(k * scale))).map { red(card.maxX - (CGFloat($0) + 0.5) / scale, card.midY) }
+        if k * scale >= 1 && edge.min()! > inside * 2 / 3 {
+            errors.append("missing black outline over inner shadow (interior \(inside), edge \(edge))")
+        }
+        if red(card.maxX - 3 * k, card.midY) < inside - 5 {
+            errors.append("outline extends into the card fill")
+        }
+        return errors
+    }
+
+    /// Shown: the card's padding is dark (card over the frame), the spinner has neutral highlights and the
     /// guest frame is still visible outside the card (top-left red quadrant). Hidden: the composite
     /// equals `drawable` there (nil while the boot/shutdown overlay covers the picture).
     static func pixelChecks(_ name: String, _ img: CGImage, drawable: CGImage?, _ view: StallIndicatorView) -> [String] {
@@ -313,14 +389,14 @@ enum StallSelfTest {
             let c = px(pad)
             if c.0 > 75 || c.1 > 80 || c.2 > 90 { f.append("\(name): card padding should be dark, got \(c)") }
             let s = view.spinnerFrame
-            var blue = 0
+            var highlights = 0
             for yi in 0..<Int(s.height) {
                 for xi in 0..<Int(s.width) {
                     let p = px(CGPoint(x: s.minX + CGFloat(xi), y: s.minY + CGFloat(yi)))
-                    if p.2 > 180 && p.0 < 160 { blue += 1 }
+                    if min(p.0, p.1, p.2) > 100 && max(p.0, p.1, p.2) - min(p.0, p.1, p.2) < 50 { highlights += 1 }
                 }
             }
-            if blue < 15 { f.append("\(name): spinner not drawn (\(blue) blue points)") }
+            if highlights < Int(s.width * s.height * 0.035) { f.append("\(name): spinner not drawn (\(highlights) highlighted points)") }
         } else if !view.isHidden {
             f.append("\(name): hidden indicator view should be isHidden")
         } else if let d = drawable, let dpx = OverlaySelfTest.pixels(d), d.width == img.width, d.height == img.height {

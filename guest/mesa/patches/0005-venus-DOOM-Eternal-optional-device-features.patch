@@ -1,0 +1,98 @@
+Subject: [PATCH] venus: normalize DOOM Eternal optional feature requests
+
+--- a/src/virtio/vulkan/vn_device.c
++++ b/src/virtio/vulkan/vn_device.c
+@@ -12,6 +12,8 @@
+ 
+ #include "util/disk_cache.h"
+ #include "util/hex.h"
++#include "util/ralloc.h"
++#include "vk_enum_to_str.h"
+ #include "vn_protocol_driver_device.h"
+ 
+ #include "vn_android.h"
+@@ -573,8 +575,8 @@
+    return result;
+ }
+ 
+-VKAPI_ATTR VkResult VKAPI_CALL
+-vn_CreateDevice(VkPhysicalDevice physicalDevice,
++static VkResult
++vn_create_device(VkPhysicalDevice physicalDevice,
+                 const VkDeviceCreateInfo *pCreateInfo,
+                 const VkAllocationCallbacks *pAllocator,
+                 VkDevice *pDevice)
+@@ -624,6 +626,73 @@
+    return VK_SUCCESS;
+ }
+ 
++/* id Tech 7 enables depth bounds and wide lines even when it queried them
++ * as unsupported. Keep the real feature report and pass only available
++ * optional features through to the Venus renderer. */
++VKAPI_ATTR VkResult VKAPI_CALL
++vn_CreateDevice(VkPhysicalDevice physicalDevice,
++                const VkDeviceCreateInfo *pCreateInfo,
++                const VkAllocationCallbacks *pAllocator,
++                VkDevice *pDevice)
++{
++   const struct vn_physical_device *physical =
++      vn_physical_device_from_handle(physicalDevice);
++   const char *app = physical->instance->base.vk.app_info.app_name;
++   if (!app || strcmp(app, "DOOMEternal"))
++      return vn_create_device(physicalDevice, pCreateInfo, pAllocator, pDevice);
++
++   const VkPhysicalDeviceFeatures2 *chain =
++      vk_find_struct_const(pCreateInfo->pNext, PHYSICAL_DEVICE_FEATURES_2);
++   const VkPhysicalDeviceFeatures *requested =
++      chain ? &chain->features : pCreateInfo->pEnabledFeatures;
++   const struct vk_features *supported = &physical->base.vk.supported_features;
++   if (!requested || ((!requested->depthBounds || supported->depthBounds) &&
++                      (!requested->wideLines || supported->wideLines)))
++      return vn_create_device(physicalDevice, pCreateInfo, pAllocator, pDevice);
++
++   VkDeviceCreateInfo info = *pCreateInfo;
++   VkPhysicalDeviceFeatures features = *requested;
++   features.depthBounds &= supported->depthBounds;
++   features.wideLines &= supported->wideLines;
++   VkPhysicalDeviceFeatures2 adjusted;
++   void *copies = NULL;
++   if (chain) {
++      adjusted = *chain;
++      adjusted.features = features;
++      info.pNext = &adjusted;
++      /* Preserve the order of the chain and never edit the application's
++       * input. Only the nodes preceding Features2 need private copies. */
++      VkBaseOutStructure *last = NULL;
++      for (const VkBaseInStructure *node = pCreateInfo->pNext;
++           node != (const VkBaseInStructure *)chain; node = node->pNext) {
++         const size_t size = vk_structure_type_size(node->sType);
++         if (!size) {
++            ralloc_free(copies);
++            return vn_create_device(physicalDevice, pCreateInfo, pAllocator, pDevice);
++         }
++         VkBaseOutStructure *copy = ralloc_size(copies, size);
++         if (!copy) {
++            ralloc_free(copies);
++            return VK_ERROR_OUT_OF_HOST_MEMORY;
++         }
++         memcpy(copy, node, size);
++         if (last)
++            last->pNext = copy;
++         else {
++            copies = copy;
++            info.pNext = copy;
++         }
++         last = copy;
++         last->pNext = (VkBaseOutStructure *)&adjusted;
++      }
++   } else {
++      info.pEnabledFeatures = &features;
++   }
++   VkResult result = vn_create_device(physicalDevice, &info, pAllocator, pDevice);
++   ralloc_free(copies);
++   return result;
++}
++
+ VKAPI_ATTR void VKAPI_CALL
+ vn_DestroyDevice(VkDevice device, const VkAllocationCallbacks *pAllocator)
+ {

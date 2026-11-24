@@ -127,6 +127,9 @@ source('MoltenVK-SPIRV-Headers', require(revisions / 'SPIRV-Headers_repo_revisio
 # Vulkan-Tools is fetched by MoltenVK for SDK tooling, not linked into the dylib.
 # KosmicKrisp (Mesa), bundled when host/kosmickrisp built it (macOS 26+ build hosts).
 if (root / 'work/out/host/lib/libvulkan_kosmickrisp.dylib').is_file():
+    add('MacLauncher-KosmicKrisp', '01afe442d9186433a7a60d0527ad0ae8209f58eb', 'MIT',
+        host + '/libvulkan_kosmickrisp.dylib', 'https://github.com/procrastinine/maclauncher-kosmickrisp',
+        [('LICENSE', require(root / 'host/kosmickrisp/doom/LICENSE.MacLauncher').read_bytes())])
     mesa = root / 'work/build/host-kosmickrisp/src'
     mesa_commit = re.search(r'^MESA_COMMIT=([0-9a-f]{40})$', (root / 'host/kosmickrisp/build.sh').read_text(), re.M)
     if not mesa_commit:

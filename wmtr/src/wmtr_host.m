@@ -1488,12 +1488,27 @@ find_vm_view(NSView *v) {
   return nil;
 }
 
+/* Several swapchains, even for the same HWND, can share the launcher's VMView.
+ * ReleaseMetalView takes only the opaque handle, so give each overlay attachment
+ * its own identity and retain exactly the layer that belongs to it. */
+@interface WMTRGameSurface : NSObject
+@property(nonatomic, retain) CAMetalLayer *layer;
+@end
+
+@implementation WMTRGameSurface
+- (void)dealloc {
+  [_layer release];
+  [super dealloc];
+}
+@end
+
 __attribute__((visibility("default"))) uint64_t
 wmtr_present_create_view(void *ctx, uint64_t hwnd, void *device, uint64_t *layer_out) {
   const char *mode = getenv("WMTR_PRESENT");
   int overlay = mode && !strcmp(mode, "overlay");
-  __block NSView *view = nil;
+  __block id handle = nil;
   __block CAMetalLayer *layer = nil;
+  *layer_out = 0;
   dispatch_sync(dispatch_get_main_queue(), ^{
     layer = [CAMetalLayer layer];
     layer.device = (id<MTLDevice>)device;
@@ -1501,7 +1516,9 @@ wmtr_present_create_view(void *ctx, uint64_t hwnd, void *device, uint64_t *layer
       for (NSWindow *w in [NSApp windows]) {
         NSView *vm = find_vm_view([w contentView]);
         if (!vm || !vm.layer) continue;
-        view = [vm retain];
+        WMTRGameSurface *surface = [[WMTRGameSurface alloc] init];
+        surface.layer = layer;
+        handle = surface;
         layer.frame = vm.layer.bounds;
         layer.contentsScale = w.backingScaleFactor;
         layer.contentsGravity = kCAGravityResizeAspect;
@@ -1521,7 +1538,7 @@ wmtr_present_create_view(void *ctx, uint64_t hwnd, void *device, uint64_t *layer
           [vm setValue:[vm valueForKey:@"gameLayersVisible"] forKey:@"gameLayersVisible"];
         break;
       }
-      if (!view) NSLog(@"wmtr: no VMView found for the overlay presenter");
+      if (!handle) NSLog(@"wmtr: no VMView found for the overlay presenter");
       return;
     }
     NSRect r = NSMakeRect(80, 80, 1280, 800);
@@ -1530,35 +1547,33 @@ wmtr_present_create_view(void *ctx, uint64_t hwnd, void *device, uint64_t *layer
                                                 backing:NSBackingStoreBuffered
                                                   defer:NO];
     [w setTitle:[NSString stringWithFormat:@"wmtr hwnd %llx", (unsigned long long)hwnd]];
-    view = [[NSView alloc] initWithFrame:r];
+    NSView *view = [[NSView alloc] initWithFrame:r];
+    handle = view;
     view.wantsLayer = YES;
     layer.contentsScale = 1.0;
     view.layer = layer;
     [w setContentView:view];
     [w orderFront:nil]; /* never activate: do not take focus from the user's apps */
   });
-  if (!view) return 0;
+  if (!handle) return 0;
   *layer_out = (uint64_t)[layer retain];
-  /* the handle released by ReleaseMetalView: remember the layer to detach it */
-  objc_setAssociatedObject(view, (const void *)hwnd, layer, OBJC_ASSOCIATION_RETAIN);
-  return (uint64_t)view;
+  return (uint64_t)handle;
 }
 
 __attribute__((visibility("default"))) void
 wmtr_present_release_view(void *ctx, uint64_t v) {
-  NSView *view = (NSView *)v;
-  const char *mode = getenv("WMTR_PRESENT");
-  int overlay = mode && !strcmp(mode, "overlay");
+  id handle = (id)v;
   dispatch_async(dispatch_get_main_queue(), ^{
-    if (overlay) {
-      for (CALayer *l in [[view.layer sublayers] copy])
-        if ([l isKindOfClass:[CAMetalLayer class]] && l != view.layer) [l removeFromSuperlayer];
+    if ([handle isKindOfClass:[WMTRGameSurface class]]) {
+      CAMetalLayer *layer = [(WMTRGameSurface *)handle layer];
+      id view = layer.superlayer.delegate;
+      [layer removeFromSuperlayer];
       if ([view respondsToSelector:@selector(gameLayersVisible)])
         [view setValue:[view valueForKey:@"gameLayersVisible"] forKey:@"gameLayersVisible"];
     } else {
-      [[view window] close];
+      [[(NSView *)handle window] close];
     }
-    [view release];
+    [handle release];
   });
 }
 

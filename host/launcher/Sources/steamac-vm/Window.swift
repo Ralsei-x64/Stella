@@ -59,13 +59,6 @@ final class WindowController: NSObject, NSWindowDelegate {
     /// Same for keys (macOS key codes) that woke the guest.
     private var swallowedKeys = Set<UInt16>()
     private var progress: BootProgress?
-    /// The boot / shutdown overlay is collapsed into the pill (click / key, menu, 15 min); a new
-    /// shutdown, the pill or the menu expands it again.
-    private var overlayCollapsed = false
-    /// Collapsed by View → Show Boot Progress or the 15-minute timeout: download-type stages do
-    /// not re-expand it (a click / key collapse is undone when one starts).
-    private var collapseIsSticky = false
-
     private var pressedKeys = Set<UInt16>()
     private var tabletButtons = Set<UInt16>()
     private var mouseButtons = Set<UInt16>()
@@ -161,10 +154,13 @@ final class WindowController: NSObject, NSWindowDelegate {
             log("display: follow window size \(on ? "on" : "off")")
             if on { self?.scheduleGuestResize() }
         })
+        subscriptions.append(settings.$verboseOverlay.removeDuplicates().receive(on: DispatchQueue.main).sink { [weak self] enabled in
+            self?.overlay.verbose = enabled
+        })
         subscriptions.append(settings.$showOverlay.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] on in
             guard let self else { return }
             if !on { self.overlay.hide() }
-            else if self.bootOrShutdown, !self.overlayCollapsed { self.overlay.show() }
+            else if self.bootOrShutdown { self.overlay.show() }
         })
         subscriptions.append(settings.objectWillChange.receive(on: DispatchQueue.main).sink { [weak self] _ in
             guard let self else { return }
@@ -388,7 +384,7 @@ final class WindowController: NSObject, NSWindowDelegate {
         case .running: return nil
         case .shutdown: return ellipsized
         case .boot:
-            guard !s.indeterminate, s.fraction > 0 else { return ellipsized }
+            guard s.stageId != "boot-failed", s.fraction > 0 else { return ellipsized }
             let t = s.title.hasSuffix("…") ? String(s.title.dropLast()) : s.title
             return String(localized: "\(t) \(Int((s.fraction * 100).rounded(.down)))%")
         }
@@ -431,14 +427,17 @@ final class WindowController: NSObject, NSWindowDelegate {
 
     // MARK: overlay
 
-    /// Boot / shutdown progress always stays on screen until `ready`: the full overlay, or the
-    /// compact pill once the user clicked / pressed a key in the window (or after 15 minutes, or
-    /// with Settings > General's overlay off). Clicking the pill or View > Show Boot Progress
-    /// expands it again; a shutdown / reboot starts with the full overlay again. Provisioning and
-    /// the Steam client download / install keep the full overlay up (`keepOverlayStages`).
+    /// Attach progress to the main VM window before its first presentation.
     func attach(progress: BootProgress) {
         self.progress = progress
+        overlay.verbose = settings.verboseOverlay
+        overlay.verboseScreen.lines = { [weak progress] in progress?.verboseLines ?? [] }
+        progress.onVerboseChange = { [weak self] in
+            guard let overlay = self?.overlay, overlay.verbose, overlay.shown else { return }
+            overlay.verboseScreen.setNeedsDisplay()
+        }
         overlay.update(progress.state)
+        if settings.showOverlay { overlay.show(animated: false) }
         let previous = progress.onChange
         progress.onChange = { [weak self] s in previous?(s); self?.progressChanged(s) }
         let previousFocus = progress.onFocus
@@ -458,31 +457,20 @@ final class WindowController: NSObject, NSWindowDelegate {
         }
         let previousReady = progress.onReady
         progress.onReady = { [weak self] in previousReady?(); self?.overlay.hide() }
-        let previousShutdown = progress.onShutdown
-        progress.onShutdown = { [weak self] reboot in
-            previousShutdown?(reboot)
-            guard let self else { return }
-            self.overlayCollapsed = false
-            self.collapseIsSticky = false
-            if self.settings.showOverlay { self.overlay.show() }
-            self.pauseView.hide(animated: false)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 15 * 60) { [weak self] in
-            guard let self, let p = self.progress, p.state.phase == .boot, self.overlay.shown else { return }
-            self.collapseOverlay("still booting after 15 min", sticky: true)
-        }
         updatePill()
         updateTitle()
     }
 
     private func progressChanged(_ s: ProgressState) {
+        let wasShuttingDown = overlay.isShuttingDown
         overlay.update(s)
-        // Entering a download-type stage after a click / key collapsed the overlay: full overlay again.
-        if s.phase == .boot, Self.keepOverlayStages.contains(s.stageId), overlayCollapsed, !collapseIsSticky,
-           settings.showOverlay, !overlay.shown {
-            overlayCollapsed = false
-            log("overlay: expanded for \(s.stageId)")
-            overlay.show()
+        if !wasShuttingDown && overlay.isShuttingDown {
+            // Select the shutdown presentation before updatePill can start a compact loader over Steam.
+            pauseView.hide(animated: false)
+            sleepView.hide(animated: false)
+            resumeChip.hide(animated: false)
+            stallView.hide(animated: false)
+            if settings.showOverlay { overlay.show(animated: false) }
         }
         updatePill()
         updateTitle()
@@ -492,15 +480,14 @@ final class WindowController: NSObject, NSWindowDelegate {
     /// Booting or shutting down (not `ready` yet, or no longer).
     private var bootOrShutdown: Bool { progress.map { $0.state.phase != .running } ?? false }
 
-    /// The pill shows the boot / shutdown progress whenever the full overlay is not up, else the
-    /// no-picture guard's report (after `ready`); hidden (fading) otherwise.
+    /// Only shutdown and the post-boot no-picture diagnostic use the compact pill.
     private func updatePill() {
         let content: ProgressPillView.Content?
         if overlay.shown {
             content = nil
-        } else if let p = progress?.state, p.phase != .running {
+        } else if let p = progress?.state, case .shutdown = p.phase {
             content = ProgressPillView.Content(p)
-        } else if let r = noPictureReport {
+        } else if progress?.state.phase == .running, let r = noPictureReport {
             content = ProgressPillView.Content(title: r.title, detail: r.detail, fraction: nil)
         } else {
             content = nil
@@ -509,43 +496,20 @@ final class WindowController: NSObject, NSWindowDelegate {
             pill.update(content)
             pill.show()
         } else {
-            pill.hide()
+            // A retiring card’s native backdrop would also blur the newly visible full screen.
+            pill.hide(animated: !overlay.shown)
         }
         refreshHostCursor()
     }
 
-    /// Full overlay → pill (the progress stays on screen; input goes through). `sticky`: the menu
-    /// or the timeout, which download-type stages respect until `ready`.
-    private func collapseOverlay(_ why: String, sticky: Bool = false) {
-        guard overlay.shown else { return }
-        if bootOrShutdown {
-            overlayCollapsed = true
-            collapseIsSticky = sticky
-            log("overlay: collapsed to pill (\(why))")
-        }
-        overlay.hide()
-    }
-
-    /// Click on the pill: back to the full overlay.
+    /// Expand compact shutdown progress into the full overlay.
     private func expandPill() {
         guard bootOrShutdown, !overlay.shown else { return }
-        overlayCollapsed = false
-        collapseIsSticky = false
-        log("overlay: expanded from pill (click)")
         overlay.show()
     }
 
-    /// Menu "Show Boot Progress": expand the pill / collapse the overlay (after `ready`: show / hide
-    /// the overlay).
     func toggleOverlay() {
-        if overlay.shown {
-            collapseOverlay("menu", sticky: true)
-        } else {
-            if bootOrShutdown { log("overlay: expanded from pill (menu)") }
-            overlayCollapsed = false
-            collapseIsSticky = false
-            overlay.show()
-        }
+        if overlay.shown { overlay.hide() } else { overlay.show() }
     }
 
     /// Menu "Show Metal Performance HUD" / Ctrl+Cmd+P: flips the setting (persisted, Settings > Display).
@@ -627,18 +591,11 @@ final class WindowController: NSObject, NSWindowDelegate {
         noPicture.asleep = guestAsleep
     }
 
-    /// The user interacted with the guest: a visible overlay gets out of the way (input still goes
-    /// through); before `ready` the progress stays on screen as the pill. While the guest downloads
-    /// or installs the Steam client or provisions a new disk the overlay stays up: the guest shows
-    /// nothing to interact with then (View → Show Boot Progress still collapses it).
-    private func userInput(_ what: String) {
-        guard overlay.shown else { return }
-        if let p = progress?.state, p.phase == .boot, Self.keepOverlayStages.contains(p.stageId) { return }
-        collapseOverlay(what)
+    /// Startup stays in the main window. Input can dismiss a manually shown or shutdown overlay.
+    private func userInput() {
+        guard overlay.shown, progress?.state.phase != .boot else { return }
+        overlay.hide()
     }
-
-    /// Boot stages during which input does not collapse the overlay.
-    private static let keepOverlayStages: Set<String> = ["provision", "steam-download", "steam-install"]
 
     /// Read back the next presented drawable; `composite` = drawable with the overlay, the
     /// GPU-idle indicator, the progress pill, the "Game paused" / "SteamOS is sleeping" cards and
@@ -650,10 +607,11 @@ final class WindowController: NSObject, NSWindowDelegate {
                 guard let self else { return done(drawable, nil) }
                 var composite = self.overlay.renderImage(scale: 2, under: drawable)
                 composite = self.stallView.renderImage(scale: 2, under: composite)
-                composite = self.pill.renderLayerImage(scale: 2, under: composite)
-                for v in [self.pauseView, self.sleepView, self.resumeChip] as [NSView] {
+                composite = self.pill.renderImage(scale: 2, under: composite)
+                for v in [self.pauseView, self.sleepView] as [NSView] {
                     composite = v.renderLayerImage(scale: 2, under: composite)
                 }
+                composite = self.resumeChip.renderImage(scale: 2, under: composite)
                 done(drawable, composite)
             }
         }
@@ -697,7 +655,7 @@ final class WindowController: NSObject, NSWindowDelegate {
 
         switch e.type {
         case .keyDown:
-            userInput("key")
+            userInput()
             if mods.contains([.control, .command]) {
                 switch Int(e.keyCode) {
                 case kVK_ANSI_F: toggleFullScreen(); return true
@@ -1135,7 +1093,7 @@ extension WindowController {
             return
         }
         if !down && swallowedButtons.remove(b) != nil { return }
-        if down { userInput("click") }
+        if down { userInput() }
         if captured {
             if down ? mouseButtons.insert(b).inserted : mouseButtons.remove(b) != nil {
                 inputs.mouse.send([(EV.KEY, b, down ? 1 : 0)])
@@ -1210,6 +1168,8 @@ enum MainMenu {
         main.addItem(appItem)
         let appMenu = NSMenu()
         appItem.submenu = appMenu
+        appMenu.addItem(item("About Stella", #selector(AboutWindowController.show(_:)), AboutWindowController.shared))
+        appMenu.addItem(.separator())
         // Titled by the target's validateMenuItem ("Update Available: X.Y…" once one was found).
         appMenu.addItem(item("Check for Updates…", checkForUpdates, target))
         appMenu.addItem(.separator())
@@ -1247,13 +1207,15 @@ enum MainMenu {
         NSApp.helpMenu = help
     }
 
-    /// App menu with Settings… and Quit only (first-run sheet, --selftest-settings).
+    /// App menu for About, Settings and Quit (first-run sheet, --selftest-settings).
     static func installMinimal(settings: (Selector, AnyObject)? = nil) {
         let main = NSMenu()
         let appItem = NSMenuItem()
         main.addItem(appItem)
         let appMenu = NSMenu()
         appItem.submenu = appMenu
+        appMenu.addItem(item("About Stella", #selector(AboutWindowController.show(_:)), AboutWindowController.shared))
+        appMenu.addItem(.separator())
         if let (action, target) = settings { appMenu.addItem(item("Settings…", action, target, key: ",")) }
         appMenu.addItem(NSMenuItem(title: String(localized: "Quit Stella"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         addEditAndWindowMenus(main)

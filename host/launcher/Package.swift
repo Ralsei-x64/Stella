@@ -40,6 +40,7 @@ let package = Package(
             dependencies: ["CKrun", "CZstd", "CEnet", "CNanors", .product(name: "Sentry", package: "sentry-cocoa"),
                            .product(name: "Sparkle", package: "Sparkle")],
             path: "Sources/steamac-vm",
+            resources: [.copy("Brand")],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("Metal"),

@@ -605,7 +605,6 @@ do {
         gamePause.setAppActive(NSApp.isActive)
         clipboard?.setAppActive(NSApp.isActive)
     }
-    if settings.showOverlay { wc.overlay.show() }
     if options.fullscreen && !wc.window.styleMask.contains(.fullScreen) { wc.window.toggleFullScreen(nil) }
     gamepad?.start()
     // New-version check (first boot of this launch; Settings > General), after the window is up.

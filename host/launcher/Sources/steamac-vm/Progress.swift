@@ -11,6 +11,7 @@ struct ProgressState: Equatable {
     var detail = ""
     var logDetail = ""
     var fraction = 0.0
+    /// The current stage has no local percentage. Its overall milestone is still known.
     var indeterminate = false
 }
 
@@ -79,6 +80,19 @@ final class BootProgress {
     }
 
     private(set) var state = ProgressState()
+    private(set) var verboseLines: [NSAttributedString] = []
+    var onVerboseChange: (() -> Void)?
+
+    private func appendVerbose(_ line: String, stage: Bool = false) {
+        guard state.phase != .running else { return }
+        let text = String(line.prefix(2048)).trimmingCharacters(in: .whitespacesAndNewlines)
+        let styled = VerboseLogStyle.line(text, stage: stage)
+        guard !styled.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        if verboseLines.count == 96 { verboseLines.removeFirst() }
+        verboseLines.append(styled)
+        onVerboseChange?()
+    }
+
     /// State changed (overlay redraw / log line).
     var onChange: ((ProgressState) -> Void)?
     /// Initramfs failed before the guest progress agent could start; shown once as a window sheet.
@@ -131,13 +145,16 @@ final class BootProgress {
             state.title = String(localized: "Restarting SteamOS…")
             state.logTitle = "Restarting SteamOS…"
         }
+        appendVerbose(state.title, stage: true)
     }
 
     // MARK: inputs
 
     func consoleLine(_ raw: String) {
-        let line = BootProgress.stripKernelTimestamp(BootProgress.stripANSI(raw).trimmingCharacters(in: .whitespacesAndNewlines))
+        let console = BootProgress.stripANSI(raw).trimmingCharacters(in: .whitespacesAndNewlines)
+        let line = BootProgress.stripKernelTimestamp(console)
         guard !line.isEmpty else { return }
+        defer { appendVerbose(raw) }
         if !sawConsole {
             sawConsole = true
             if state.phase == .boot && state.stageId == "vm" {
@@ -204,11 +221,15 @@ final class BootProgress {
             guard parts.count >= 3, BootProgress.guestStages.contains(parts[1]), let pct = Int(parts[2]),
                   state.phase == .boot else { return }
             let text = parts.count > 3 ? parts[3] : state.logTitle
+            let stageTitle = BootProgress.localizedGuestText(text)
+            let entry = pct < 0 ? stageTitle : String(localized: "\(stageTitle) \(min(pct, 100))%")
+            if entry != verboseLines.last?.string { appendVerbose(entry, stage: true) }
             set(stage: parts[1], title: text, localizedTitle: parts.count > 3 ? BootProgress.localizedGuestText(text) : state.title,
                 percent: Double(max(0, min(100, pct))), indeterminate: pct < 0,
                 detail: parts[1] == state.stageId ? state.logDetail : "",
                 localizedDetail: parts[1] == state.stageId ? state.detail : "")
         case "provision":
+            appendVerbose(line)
             provisionLine(parts.dropFirst().joined(separator: " "))
         case "config":
             configLine(parts.dropFirst().joined(separator: " "))
@@ -217,6 +238,7 @@ final class BootProgress {
             var s = state
             s.detail = String(line.dropFirst(4))
             s.logDetail = s.detail
+            appendVerbose(s.detail)
             publish(s)
         case "ready":
             guard state.phase == .boot else { return }
@@ -363,6 +385,7 @@ final class BootProgress {
             }
             return
         }
+        verboseLines.removeAll(keepingCapacity: true)
         stopLines = 0
         var s = state
         s.phase = .shutdown(reboot: reboot)
@@ -374,6 +397,7 @@ final class BootProgress {
         s.fraction = 0
         s.indeterminate = false
         publish(s)
+        appendVerbose(s.title, stage: true)
         if reboot { noteReboot() }
         onShutdown?(reboot)
     }
@@ -464,16 +488,29 @@ final class BootProgress {
         return String(t)
     }
 
-    static func stripANSI(_ s: String) -> String {
+    static func stripANSI(_ s: String, onSGR: ((String, Int) -> Void)? = nil) -> String {
         guard s.contains("\u{1b}") || s.contains("\r") else { return s }
         var out = ""
         var it = s.unicodeScalars.makeIterator()
         while let c = it.next() {
             if c == "\u{1b}" {
-                // CSI: ESC [ params final(0x40-0x7e); other escapes: skip one char.
+                // Consume CSI formatting and OSC payloads (terminated by BEL or ESC backslash).
                 guard let n = it.next() else { break }
                 if n == "[" {
-                    while let p = it.next(), !(0x40...0x7e).contains(p.value) {}
+                    var parameters = ""
+                    while let p = it.next() {
+                        if (0x40...0x7e).contains(p.value) {
+                            if p == "m" { onSGR?(parameters, out.utf16.count) }
+                            break
+                        }
+                        if onSGR != nil { parameters.unicodeScalars.append(p) }
+                    }
+                } else if n == "]" {
+                    var escaped = false
+                    while let p = it.next() {
+                        if p.value == 7 || (escaped && p.value == 0x5c) { break }
+                        escaped = p.value == 0x1b
+                    }
                 }
             } else if c != "\r" {
                 out.unicodeScalars.append(c)

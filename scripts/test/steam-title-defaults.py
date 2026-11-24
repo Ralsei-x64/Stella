@@ -4,6 +4,7 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import shlex
 from pathlib import Path
 import subprocess
 import sys
@@ -128,6 +129,26 @@ class TitleDefaultsTests(unittest.TestCase):
         self.assertIsNone(self.options())
         self.assertNotIn("last", self.state())
 
+    def test_doom_wrapper_survives_profiles_and_preserves_custom_commands(self):
+        key = (*titles.VDF_PATH, titles.DOOM_APPID, "LaunchOptions")
+        def options():
+            return titles.vdf_entries(self.config.read_text())[0][tuple(k.lower() for k in key)][0]
+        previous = "MY_SETTING=1 gamemoderun %command% +custom 2"
+        self.config.write_text(titles.vdf_set(self.config.read_text(), key, previous))
+        self.run_script()
+        expected = previous.replace("%command%", titles.DOOM_LAUNCHER + " %command%")
+        self.assertEqual(options(), expected)
+        profiles = self.home / ".config/steamac/game-profiles.json"
+        profiles.write_text(json.dumps({"games": {titles.DOOM_APPID: {"env": "PROTON_LOG=1"}}}))
+        self.run_script()
+        self.assertEqual(options(), "PROTON_LOG=1 " + expected)
+        profiles.unlink()
+        self.run_script()
+        self.assertEqual(options(), expected)
+        self.config.write_text(titles.vdf_set(self.config.read_text(), key, "+user 1"))
+        self.run_script()
+        self.assertEqual(options(), "+user 1")
+
     def test_raw_arguments_do_not_probe(self):
         self.set_options("--raw-arguments")
         self.run_script()
@@ -209,6 +230,24 @@ class TitleDefaultsTests(unittest.TestCase):
         self.profiles({})
         self.run_script()
         self.assertEqual(self.app_options("1237970"), previous)
+
+    def test_gpu_identity_changes_only_the_selected_game_and_restores_options(self):
+        for vendor, pci, device, name in [
+            ("amd", "1002", "73bf", "AMD Radeon RX 6800 XT"),
+            ("nvidia", "10de", "2484", "NVIDIA GeForce RTX 3070"),
+        ]:
+            self.profiles({"782330": {"env": f"DXMT_CONFIG=keep STEAMAC_GPU_VENDOR={vendor}"}})
+            self.run_script()
+            words = shlex.split(self.app_options("782330"))
+            expected = f'dxgi.customVendorId={pci};dxgi.customDeviceId={device};dxgi.customDeviceDesc="{name}"'
+            self.assertIn("DXMT_CONFIG=keep;" + expected, words)
+            self.assertIn("DXVK_CONFIG=" + expected, words)
+            self.assertIn("STEAMAC_GPU_VENDOR=" + vendor, words)
+            self.assertEqual(words[-1], "%command%")
+            self.assertIsNone(self.app_options("570"))
+        self.profiles({})
+        self.run_script()
+        self.assertEqual(self.app_options("782330"), titles.DOOM_LAUNCHER + " %command%")
 
     def test_profile_user_edit_wins_after_change_and_removal(self):
         self.profiles({"570": {"env": "PROTON_LOG=1"}})

@@ -47,7 +47,7 @@ struct GamesTab: View {
                     ForEach(games) { game in
                         VStack(alignment: .leading, spacing: 10) {
                             GameStatsRow(game: game, store: store, sharingOn: settings.shareGameStats)
-                            GameProfileRow(appid: game.appid, recommendations: recommendations)
+                            GameProfileRow(game: game, recommendations: recommendations)
                         }
                         .padding(.vertical, 6)
                     }
@@ -71,73 +71,23 @@ struct GamesTab: View {
 
 private struct GameProfileRow: View {
     @EnvironmentObject var settings: LauncherSettings
-    let appid: Int
+    let game: GameStatsStore.Game
     @ObservedObject var recommendations: GameRecommendations
-    @State private var env = ""
-    @State private var showSecurity = false
-    private var profile: GameProfile { settings.profile(for: appid) }
-    private func change(_ body: (inout GameProfile) -> Void) {
-        var value = profile; body(&value); settings.setProfile(value, for: appid)
-    }
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Picker("Graphics", selection: Binding(get: { profile.gfx ?? "" }, set: { value in change { $0.gfx = value.isEmpty ? nil : value } })) {
-                    Text("Default").tag("")
-                    Text(verbatim: "Vulkan").tag("vulkan")
-                    Text(verbatim: "DXMT").tag("dxmt")
-                }
-                Picker("Vulkan driver", selection: Binding(get: { profile.driver ?? "" }, set: { value in change { $0.driver = value.isEmpty ? nil : value } })) {
-                    Text("Default").tag("")
-                    ForEach(LauncherSettings.VulkanDriver.allCases.filter { $0.unavailableReason == nil }) { driver in
-                        Text(verbatim: driver.name).tag(driver.rawValue)
-                    }
-                }
-            }
-            TextField("Launch options", text: $env)
-                .textFieldStyle(.roundedBorder)
-                .onChange(of: env) { _, value in
-                    if GameProfile.validEnv(value) { change { $0.env = value } }
-                }
-            if !GameProfile.validEnv(env) {
-                Text("Use NAME=value words (up to 256 characters). Names must start with VKD3D_, DXVK_, PROTON_, WINE_, MESA_, RADV_, VK_, DXMT_, MTL_ or STEAMAC_; values may contain letters, digits and _.,:;+- only.")
-                    .font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
-            }
-            if profile.gfx == "dxmt" && !settings.wmtr {
-                HStack {
-                    Text("DXMT is not in effect while Allow DXMT is off.").font(.caption).foregroundStyle(.secondary)
-                    Button("Allow DXMT…") { showSecurity = true }
-                }
-            }
-            if (profile.driver ?? settings.vulkanDriver.rawValue) != (settings.bootedDriver ?? settings.vulkanDriver).rawValue {
-                Text("Vulkan driver applies on the next start of this game (VM restart required).")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            if profile.gfx == "dxmt", settings.wmtr, settings.bootedDXMT == false {
-                Text("Allow DXMT applies on the next VM start.").font(.caption).foregroundStyle(.secondary)
-            }
-            recommendation
-        }
-        .onAppear { env = profile.env; recommendations.fetch(appid) }
-        .alert("Allow DXMT?", isPresented: $showSecurity) {
-            Button("Allow DXMT") { settings.wmtr = true }
-            Button("Cancel", role: .cancel) {}
-        } message: { Text(verbatim: GameProfile.securityText) }
-    }
+    @State private var editing = false
 
-    @ViewBuilder private var recommendation: some View {
-        switch recommendations.rows[appid] {
-        case .found(let row):
-            HStack {
-                Text("Recommended: \(row.profile.summary)").font(.caption).textSelection(.enabled)
-                Spacer()
-                Button("Apply") {
-                    settings.setProfile(row.profile, for: appid)
-                    env = row.profile.env
-                }.disabled(!row.usable)
-            }
-        case .loading: Text("Recommended: loading…").font(.caption).foregroundStyle(.secondary)
-        default: Text("Recommended: unavailable").font(.caption).foregroundStyle(.secondary)
+    var body: some View {
+        let profile = settings.profile(for: game.appid)
+        let matched = settings.compatibilityPresets(for: game.appid).first { GameProfile.validEnv(profile.env) && $0.profile == profile.normalized }
+        HStack {
+            Label(matched?.name ?? String(localized: "Custom settings"), systemImage: "slider.horizontal.3")
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("Compatibility…") { editing = true }
+                .accessibilityIdentifier("compatibility-\(game.appid)")
+        }
+        .sheet(isPresented: $editing) {
+            GameCompatibilityEditor(game: game, profile: profile, recommendations: recommendations)
+                .environmentObject(settings)
         }
     }
 }

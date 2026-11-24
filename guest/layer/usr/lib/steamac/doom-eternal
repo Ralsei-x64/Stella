@@ -1,0 +1,18 @@
+#!/bin/bash
+# Steam can launch the optional idTech mod launcher. Start the installed game
+# directly and preserve Proton, Steam Runtime and the user's game arguments.
+set -eu
+args=("$@")
+for i in "${!args[@]}"; do
+    case "${args[i]}" in
+        */launcher/idTechLauncher.exe)
+            game="${args[i]%/launcher/idTechLauncher.exe}/DOOMEternalx64vk.exe"
+            if [[ -f "$game" ]]; then args[i]="$game"; fi
+            ;;
+    esac
+done
+export STEAMAC_GPU_VENDOR="${STEAMAC_GPU_VENDOR:-amd}"
+# The frame pool asks for more standalone samplers than its declared count.
+# Let the host allocate from its backing storage and return the actual result.
+export VN_PERF="${VN_PERF:+$VN_PERF,}no_async_set_alloc"
+exec "${args[@]}"

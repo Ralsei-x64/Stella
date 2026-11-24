@@ -563,102 +563,10 @@ final class SleepPort {
     }
 }
 
-/// "Resuming…" ("Waking up…" after a guest sleep) chip at the top of the VM picture (FX overlay
-/// style), from Resume until the guest's next frame (0.5 s while the guest's GPU is idle, 2.5 s
-/// at most).
-final class ResumeChipView: NSView {
-    private let chip = CALayer()
-    private let dot = CALayer()
-    private let label = CATextLayer()
-    private(set) var shown = false
-    private(set) var text = String(localized: "Resuming…", comment: "The whole VM is resuming after an in-memory suspend, not a paused game")
-
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        wantsLayer = true
-        layer = CALayer()
-        autoresizingMask = [.width, .height]
-        chip.backgroundColor = OverlayView.color(0x171a21, 0.88)
-        chip.borderColor = OverlayView.color(0x66c0f4, 0.22)
-        chip.borderWidth = 1
-        dot.backgroundColor = OverlayView.color(0x66c0f4)
-        label.alignmentMode = .left
-        label.truncationMode = .end
-        chip.addSublayer(dot)
-        chip.addSublayer(label)
-        layer!.addSublayer(chip)
-        alphaValue = 0
-        isHidden = true
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    override var isOpaque: Bool { false }
-
+/// Transient loader until the guest presents its first frame after resume.
+final class ResumeChipView: LoaderCardView {
     func show(_ text: String) {
-        self.text = text
-        shown = true
-        isHidden = false
-        needsLayout = true
-        layoutSubtreeIfNeeded()
-        alphaValue = 1
-        let pulse = CABasicAnimation(keyPath: "opacity")
-        pulse.fromValue = 1
-        pulse.toValue = 0.25
-        pulse.duration = 0.6
-        pulse.autoreverses = true
-        pulse.repeatCount = .infinity
-        dot.add(pulse, forKey: "pulse")
-    }
-
-    func hide(animated: Bool = true) {
-        guard shown else { return }
-        shown = false
-        let done = { [weak self] in
-            guard let self, !self.shown else { return }
-            self.isHidden = true
-            self.dot.removeAllAnimations()
-        }
-        guard animated else {
-            alphaValue = 0
-            done()
-            return
-        }
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.25
-            animator().alphaValue = 0
-        }, completionHandler: done)
-    }
-
-    override func viewDidChangeBackingProperties() {
-        super.viewDidChangeBackingProperties()
-        needsLayout = true
-    }
-
-    override func setFrameSize(_ newSize: NSSize) {
-        super.setFrameSize(newSize)
-        needsLayout = true
-    }
-
-    override func layout() {
-        super.layout()
-        let s = max(0.85, min(1.6, min(bounds.width / 1280, bounds.height / 800)))
-        let text = NSAttributedString(string: self.text, attributes: [
-            .font: NSFont.systemFont(ofSize: 13 * s, weight: .medium),
-            .foregroundColor: OverlayView.color(0xc7d5e0)])
-        let size = text.size()
-        let padX = 14 * s, dotD = 8 * s, gap = 8 * s, h = ceil(size.height) + 12 * s
-        let w = padX + dotD + gap + ceil(size.width) + padX
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        chip.frame = CGRect(x: (bounds.width - w) / 2, y: bounds.height - h - 18 * s, width: w, height: h)
-        chip.cornerRadius = h / 2
-        dot.frame = CGRect(x: padX, y: (h - dotD) / 2, width: dotD, height: dotD)
-        dot.cornerRadius = dotD / 2
-        label.string = text
-        label.contentsScale = window?.backingScaleFactor ?? 2
-        label.frame = CGRect(x: padX + dotD + gap, y: (h - ceil(size.height)) / 2, width: ceil(size.width) + 2, height: ceil(size.height))
-        CATransaction.commit()
+        update(title: text, detail: String(localized: "Waiting for SteamOS to draw…"))
+        show()
     }
 }

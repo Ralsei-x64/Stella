@@ -1,28 +1,77 @@
 {
-  "fill": {
-    "solid": "srgb:0.00000,0.00000,0.00000,1.00000"
+  "fill" : {
+    "linear-gradient" : [
+      "srgb:1.00000,0.56693,0.55959,1.00000",
+      "srgb:1.00000,0.74467,0.64372,1.00000"
+    ],
+    "orientation" : {
+      "start" : { "x" : 0.5, "y" : 0 },
+      "stop" : { "x" : 0.5, "y" : 1 }
+    }
   },
-  "groups": [
+  "groups" : [
     {
-      "layers": [
+      "layers" : [
         {
-          "image-name": "fx.png",
-          "name": "fx",
-          "glass": false
+          "fill-specializations" : [
+            {
+              "value" : {
+                "linear-gradient" : [
+                  "srgb:0.00000,0.00000,0.00000,1.00000",
+                  "srgb:0.00000,0.00000,0.00000,0.45000"
+                ],
+                "orientation" : {
+                  "start" : {
+                    "x" : 0.49999999999999983,
+                    "y" : 0
+                  },
+                  "stop" : {
+                    "x" : 0.5,
+                    "y" : 1
+                  }
+                }
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "linear-gradient" : [
+                  "display-p3:0.98344,1.00000,0.94165,1.00000",
+                  "srgb:1.00000,1.00000,1.00000,0.26758"
+                ]
+              }
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "srgb:0.00000,0.53333,1.00000,1.00000"
+              }
+            }
+          ],
+          "glass" : true,
+          "image-name" : "Vector 2 (Stroke).svg",
+          "name" : "Vector 2 (Stroke)",
+          "position" : {
+            "scale" : 16,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
         }
       ],
-      "shadow": {
-        "kind": "none",
-        "opacity": 0.5
+      "shadow" : {
+        "kind" : "none",
+        "opacity" : 0.5
       },
-      "translucency": {
-        "enabled": false,
-        "value": 0.5
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
       }
     }
   ],
-  "supported-platforms": {
-    "squares": [
+  "supported-platforms" : {
+    "squares" : [
       "macOS"
     ]
   }

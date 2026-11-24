@@ -5,15 +5,21 @@ import SwiftUI
 
 /// Host-only driver choice is deliberately absent from the guest payload.
 struct GameProfile: Codable, Equatable {
+    enum GPUVendor: String, Codable, CaseIterable {
+        case amd, nvidia
+        var name: String { self == .amd ? "AMD Radeon RX 6800 XT" : "NVIDIA GeForce RTX 3070" }
+    }
     var gfx: String?
     var driver: String?
+    var gpuVendor: GPUVendor?
     var env = ""
-    var isDefault: Bool { gfx == nil && driver == nil && env.isEmpty }
+    var isDefault: Bool { gfx == nil && driver == nil && gpuVendor == nil && env.isEmpty }
 
-    init(gfx: String? = nil, driver: String? = nil, env: String = "") {
+    init(gfx: String? = nil, driver: String? = nil, env: String = "", gpuVendor: GPUVendor? = nil) {
         self.gfx = gfx
         self.driver = driver
         self.env = env
+        self.gpuVendor = gpuVendor
     }
     /// Every field is optional in the stored JSON: a profile without launch words (or written by
     /// hand, `defaults write … profile.<appid>`) must not be dropped.
@@ -21,7 +27,32 @@ struct GameProfile: Codable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         gfx = try c.decodeIfPresent(String.self, forKey: .gfx)
         driver = try c.decodeIfPresent(String.self, forKey: .driver)
+        gpuVendor = try c.decodeIfPresent(String.self, forKey: .gpuVendor).flatMap(GPUVendor.init(rawValue:))
         env = try c.decodeIfPresent(String.self, forKey: .env) ?? ""
+    }
+
+    var guestEnv: String {
+        let words = Self.sanitizedEnv(env).split(separator: " ").filter { !$0.hasPrefix("STEAMAC_GPU_VENDOR=") }
+        return (words.map(String.init) + (gpuVendor.map { ["STEAMAC_GPU_VENDOR=" + $0.rawValue] } ?? [])).joined(separator: " ")
+    }
+
+    // Read the same launch words that existing profiles and the guest already use. An empty
+    // assignment enables the driver's extensions, whereas an absent assignment inherits Steam.
+    func option(_ name: String) -> String? {
+        let prefix = name + "="
+        return env.split(separator: " ").last { $0.hasPrefix(prefix) }.map { String($0.dropFirst(prefix.count)) }
+    }
+
+    mutating func setOption(_ name: String, to value: String?) {
+        var words = env.split(separator: " ").filter { !$0.hasPrefix(name + "=") }.map(String.init)
+        if let value { words.append(name + "=" + value) }
+        env = words.joined(separator: " ")
+    }
+
+    var normalized: Self {
+        var copy = self
+        copy.env = Self.sanitizedEnv(env)
+        return copy
     }
 
     private static let word = try! NSRegularExpression(pattern: "^(VKD3D|DXVK|PROTON|WINE|MESA|RADV|VK|DXMT|MTL|STEAMAC)_[A-Z0-9_]*=[A-Za-z0-9_.,:;+-]*$")
@@ -57,6 +88,12 @@ struct GameProfile: Codable, Equatable {
     static let securityText = String(localized: "Games use DXMT only when their profile selects it. Their D3D11 and D3D10 draw through DXMT directly with the Mac's Metal using native ARM64EC Proton when installed, or Proton 10.0 (x86-64) otherwise; games with Default graphics stay on Vulkan. DXMT has compatibility gaps, including no D3D11 stream output. Allowing DXMT takes effect on the next VM start. Security risk: while on, programs in SteamOS can run code on the Mac with your user's rights. The executor runs inside the VM process and trusts the guest; a fault can stop the VM.")
     static func selfCheck() -> [String] {
         var failures: [String] = []
+        let legacy = try? JSONDecoder().decode(GameProfile.self, from: Data(#"{"gfx":"vulkan"}"#.utf8))
+        if legacy != GameProfile(gfx: "vulkan") { failures.append("profiles: legacy GPU identity") }
+        var identity = GameProfile(env: "PROTON_LOG=1", gpuVendor: .amd)
+        if identity.guestEnv != "PROTON_LOG=1 STEAMAC_GPU_VENDOR=amd" { failures.append("profiles: GPU identity payload") }
+        identity.gpuVendor = nil
+        if identity.guestEnv != "PROTON_LOG=1" { failures.append("profiles: disabling GPU identity") }
         if sanitizedEnv("DXVK_A=1 PROTON_B=2 DXVK_A=3 BAD=secret WINE_X=$(id)") != "DXVK_A=3 PROTON_B=2" { failures.append("profiles: env canonicalization") }
         for value in ["PATH=/tmp", "DXVK_A=$(id)", "DXVK_A=1\nWINE_B=2", String(repeating: "A", count: 257)] {
             if validEnv(value) { failures.append("profiles: accepted invalid env") }
@@ -64,6 +101,19 @@ struct GameProfile: Codable, Equatable {
         if !validEnv("VKD3D_CONFIG=dxr;dxr11 MTL_HUD_ENABLED=1") || !validEnv("") { failures.append("profiles: valid env rejected") }
         let data = Data(#"{"recommended":{"driver":"moltenvk","gfx":"vulkan","env":null,"installs":2,"sessions":3,"ratings":{"well":2,"issues":0,"unplayable":0,"no_start":0},"fps_avg_median":29,"launch_rate":1}}"#.utf8)
         if (try? JSONDecoder().decode(GameRecommendation.Response.self, from: data).recommended?.profile) != GameProfile(gfx: "vulkan", driver: "moltenvk") { failures.append("profiles: recommendation decoding") }
+        var edited = GameProfile(env: "DXVK_HUD=custom VKD3D_SHADER_MODEL=6_0 PROTON_LOG=1 VKD3D_SHADER_MODEL=6_5")
+        if edited.option("VKD3D_SHADER_MODEL") != "6_5" { failures.append("profiles: last raw assignment wins") }
+        edited.setOption("VKD3D_SHADER_MODEL", to: "6_6")
+        edited.setOption("VKD3D_DISABLE_EXTENSIONS", to: "")
+        if edited.guestEnv != "DXVK_HUD=custom PROTON_LOG=1 VKD3D_DISABLE_EXTENSIONS= VKD3D_SHADER_MODEL=6_6" {
+            failures.append("profiles: structured options lost a custom value or duplicated a key")
+        }
+        edited.setOption("VKD3D_DISABLE_EXTENSIONS", to: nil)
+        if edited.option("VKD3D_DISABLE_EXTENSIONS") != nil { failures.append("profiles: empty and inherited are distinct") }
+        let lay = CompatibilityPreset.builtIns(for: 2776090).first { $0.id == "sm66" }
+        if lay?.profile.guestEnv != "VKD3D_DISABLE_EXTENSIONS= VKD3D_SHADER_MODEL=6_6" {
+            failures.append("profiles: Lay of the Land preset differs from the tested launch")
+        }
         let progress = BootProgress()
         var event: GuestGameEvent?
         progress.onGameEvent = { event = $0 }
@@ -72,6 +122,34 @@ struct GameProfile: Codable, Equatable {
         progress.guestLine("game-gfx 42 unknown")
         if event != .gfx(appid: 42, gfx: "dxmt") { failures.append("profiles: invalid gfx accepted") }
         return failures
+    }
+}
+
+struct CompatibilityPreset: Identifiable {
+    let id: String
+    let name: String
+    let profile: GameProfile
+
+    static func builtIns(for appid: Int) -> [Self] {
+        var presets = [Self(id: "default", name: String(localized: "Stella defaults"), profile: GameProfile())]
+        switch appid {
+        case 1237970:
+            presets.append(Self(id: "titanfall", name: String(localized: "Titanfall 2 with DXMT"),
+                                profile: GameProfile(gfx: "dxmt", driver: "kosmickrisp")))
+        case 782330:
+            presets.append(Self(id: "doom", name: String(localized: "DOOM Eternal with KosmicKrisp"),
+                                profile: GameProfile(gfx: "vulkan", driver: "kosmickrisp")))
+        default: break
+        }
+        presets += [
+            Self(id: "sm66", name: appid == 2776090 ? String(localized: "Lay of the Land with SM 6.6")
+                                                    : String(localized: "DirectX 12 with SM 6.6"),
+                 profile: GameProfile(env: "VKD3D_DISABLE_EXTENSIONS= VKD3D_SHADER_MODEL=6_6")),
+            Self(id: "dxvk", name: String(localized: "DirectX 11 with DXVK"), profile: GameProfile(gfx: "vulkan")),
+            Self(id: "dxmt", name: String(localized: "DirectX 11 with DXMT"), profile: GameProfile(gfx: "dxmt")),
+            Self(id: "logging", name: String(localized: "Proton diagnostics"), profile: GameProfile(env: "PROTON_LOG=1"))
+        ]
+        return presets
     }
 }
 
@@ -169,7 +247,7 @@ final class GameProfileController {
             let games: [String: Profile]
         }
         let games = settings.profiles.reduce(into: [String: Payload.Profile]()) { result, entry in
-            let env = GameProfile.sanitizedEnv(entry.value.env)
+            let env = entry.value.guestEnv
             if entry.value.gfx != nil || !env.isEmpty { result[String(entry.key)] = .init(gfx: entry.value.gfx, env: env.isEmpty ? nil : env) }
         }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]

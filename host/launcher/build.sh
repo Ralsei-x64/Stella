@@ -105,6 +105,7 @@ fi
 
 codesign --force --sign - --entitlements "$HERE/steamac-vm.entitlements" "$tmp"
 mv -f "$tmp" "$OUT/steamac-vm"
+ditto "$(dirname "$BIN")/steamac-vm_steamac-vm.bundle" "$OUT/steamac-vm_steamac-vm.bundle"
 # Bundle.main of the bare dev binary resolves its .lproj directories next to it.
 for lproj in "$HERE/.build/l10n"/*.lproj; do
     rm -rf "$OUT/$(basename "$lproj")"

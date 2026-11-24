@@ -25,7 +25,8 @@ void wmtr_host_kick(struct wmtr_host *h);
 void wmtr_host_destroy(struct wmtr_host *h);
 /* done_seq of reply slot `slot`, or event_head for WMTR_EVENT_SLOT */
 uint64_t wmtr_host_progress(struct wmtr_host *h, uint32_t slot);
-/* Presenter: overlay in the launcher's VMView with WMTR_PRESENT=overlay, otherwise a window per HWND. */
+/* Returns a unique, opaque presentation handle for ReleaseMetalView. With WMTR_PRESENT=overlay
+ * multiple game layers can share the VMView; releasing one detaches only its own layer. */
 uint64_t wmtr_present_create_view(void *ctx, uint64_t hwnd, void *mtl_device, uint64_t *layer);
 void wmtr_present_release_view(void *ctx, uint64_t view);
 /* Synchronous pre-present hook: encode into command_buffer before it is committed. Objects are

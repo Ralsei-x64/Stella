@@ -1,0 +1,239 @@
+diff --git a/src/kosmickrisp/vulkan/kk_device_memory.c b/src/kosmickrisp/vulkan/kk_device_memory.c
+index caf8523..2ba43ea 100644
+--- a/src/kosmickrisp/vulkan/kk_device_memory.c
++++ b/src/kosmickrisp/vulkan/kk_device_memory.c
+@@ -543,6 +543,8 @@ kk_FreeMemory(VkDevice device, VkDeviceMemory _mem,
+       kk_standard_3d_memory_finish(dev, mem);
+    if (mem->bo && mem->bo->priority_resident)
+       kk_device_memory_set_priority(dev, mem, 0.0f);
++   if (mem->host_tiled_bo)
++      kk_destroy_bo(dev, mem->host_tiled_bo);
+    if (mem->bo)
+       kk_destroy_bo(dev, mem->bo);
+    if (mem->lazy)
+diff --git a/src/kosmickrisp/vulkan/kk_device_memory.h b/src/kosmickrisp/vulkan/kk_device_memory.h
+index 18debca..0a0d005 100644
+--- a/src/kosmickrisp/vulkan/kk_device_memory.h
++++ b/src/kosmickrisp/vulkan/kk_device_memory.h
+@@ -20,6 +20,7 @@
+ struct kk_device_memory {
+    struct vk_device_memory vk;
+    struct kk_bo *bo;
++   struct kk_bo *host_tiled_bo; /* Backing for non-shared optimal images on imported pages. */
+    struct kk_standard_3d_page *standard_3d;
+    void *map;
+    bool lazy;
+diff --git a/src/kosmickrisp/vulkan/kk_image.c b/src/kosmickrisp/vulkan/kk_image.c
+index 9af87e2..62743e3 100644
+--- a/src/kosmickrisp/vulkan/kk_image.c
++++ b/src/kosmickrisp/vulkan/kk_image.c
+@@ -108,7 +108,7 @@ kk_get_image_plane_format_features(struct kk_physical_device *pdev,
+       features |= VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_DEPTH_COMPARISON_BIT;
+    }
+ 
+-   if (va_format->color && tiling != VK_IMAGE_TILING_LINEAR) {
++   if (va_format->color) {
+       features |= VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT;
+       features |= VK_FORMAT_FEATURE_2_BLIT_DST_BIT;
+       // TODO_KOSMICKRISP Support snorm formats once the following spec issue is
+@@ -283,6 +283,17 @@ kk_GetPhysicalDeviceImageFormatProperties2(
+       vk_find_struct_const(pImageFormatInfo->pNext,
+                            PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO);
+ 
++   const VkExternalMemoryHandleTypeFlags host_handles =
++      VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT |
++      VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_MAPPED_FOREIGN_MEMORY_BIT_EXT;
++   VkPhysicalDeviceImageFormatInfo2 linear_info;
++   if (external_info && (external_info->handleType & host_handles) &&
++       pImageFormatInfo->tiling == VK_IMAGE_TILING_OPTIMAL) {
++      linear_info = *pImageFormatInfo;
++      linear_info.tiling = VK_IMAGE_TILING_LINEAR;
++      pImageFormatInfo = &linear_info;
++   }
++
+    /* Initialize to zero in case we return VK_ERROR_FORMAT_NOT_SUPPORTED */
+    memset(&pImageFormatProperties->imageFormatProperties, 0,
+           sizeof(pImageFormatProperties->imageFormatProperties));
+@@ -335,17 +346,6 @@ kk_GetPhysicalDeviceImageFormatProperties2(
+        pImageFormatInfo->type == VK_IMAGE_TYPE_3D)
+       return VK_ERROR_FORMAT_NOT_SUPPORTED;
+ 
+-   /* TODO_KOSMICKRISP Linear images cannot be used as color attachments as long
+-    * as input attachments are changed to arrays. Vulkan specifies that any
+-    * image format supporting the color attachment feature also supports being
+-    * used as an input attachment, and Metal disallows arrays for linear
+-    * textures.
+-    */
+-   if (pImageFormatInfo->tiling == VK_IMAGE_TILING_LINEAR &&
+-       (all_usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+-                     VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)))
+-      return VK_ERROR_FORMAT_NOT_SUPPORTED;
+-
+    if (ycbcr_info && pImageFormatInfo->type != VK_IMAGE_TYPE_2D)
+       return VK_ERROR_FORMAT_NOT_SUPPORTED;
+ 
+@@ -654,10 +654,28 @@ static VkResult
+ kk_image_init(struct kk_device *dev, struct kk_image *image,
+               const VkImageCreateInfo *pCreateInfo)
+ {
++   const VkExternalMemoryImageCreateInfo *external_info =
++      vk_find_struct_const(pCreateInfo->pNext, EXTERNAL_MEMORY_IMAGE_CREATE_INFO);
++   const VkExternalMemoryHandleTypeFlags host_handles =
++      VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT |
++      VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_MAPPED_FOREIGN_MEMORY_BIT_EXT;
++   VkImageCreateInfo linear_info;
++   if (external_info && (external_info->handleTypes & host_handles) &&
++       pCreateInfo->tiling == VK_IMAGE_TILING_OPTIMAL) {
++      linear_info = *pCreateInfo;
++      linear_info.tiling = VK_IMAGE_TILING_LINEAR;
++      pCreateInfo = &linear_info;
++   }
+    image->writable_msaa = NULL;
+    image->wsi_opaque_sampled_view = NULL;
+    vk_image_init(&dev->vk, &image->vk, pCreateInfo);
+    image->application_usage = vk_image_usage_flags(pCreateInfo);
++   if (image->vk.tiling == VK_IMAGE_TILING_LINEAR &&
++       (image->vk.mip_levels != 1 || image->vk.array_layers != 1 ||
++        image->vk.image_type == VK_IMAGE_TYPE_3D || image->vk.samples != 1)) {
++      vk_image_finish(&image->vk);
++      return vk_error(dev, VK_ERROR_FORMAT_NOT_SUPPORTED);
++   }
+    if ((image->vk.external_handle_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT) &&
+        (!kk_fd_image_supported(image->vk.format, image->vk.image_type,
+                               image->vk.tiling, image->vk.usage,
+@@ -719,6 +737,33 @@ kk_image_init(struct kk_device *dev, struct kk_image *image,
+          requires_format_view);
+    }
+ 
++   /* virglrenderer (Venus on macOS) emulates dma-bufs with LINEAR host images
++    * and keeps the importer's VkImageDrmFormatModifierExplicitCreateInfoEXT
++    * chained: the image must use the exporter's row pitch, or the shared
++    * memory is read with the wrong stride.
++    */
++   const VkImageDrmFormatModifierExplicitCreateInfoEXT *explicit_info =
++      vk_find_struct_const(pCreateInfo->pNext,
++                           IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT);
++   if (explicit_info && pCreateInfo->tiling == VK_IMAGE_TILING_LINEAR) {
++      struct kk_image_layout *layout = &image->planes[0].layout;
++      const VkSubresourceLayout *plane_layout = explicit_info->pPlaneLayouts;
++      const uint64_t row_B =
++         util_format_get_stride(layout->format.pipe, layout->width_px);
++      if (image->plane_count != 1 ||
++          explicit_info->drmFormatModifierPlaneCount != 1 || !plane_layout ||
++          plane_layout->offset != 0 || plane_layout->rowPitch < row_B ||
++          plane_layout->rowPitch > UINT32_MAX ||
++          plane_layout->rowPitch % layout->align_B) {
++         vk_image_finish(&image->vk);
++         return VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT;
++      }
++      layout->linear_stride_B = plane_layout->rowPitch;
++      layout->layer_stride_B = plane_layout->rowPitch * layout->height_px;
++      layout->size_B = layout->layer_stride_B;
++      layout->level_offsets_B[1] = layout->layer_stride_B;
++   }
++
+    if (image->vk.image_type == VK_IMAGE_TYPE_3D &&
+        (image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT) &&
+        !(image->application_usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
+@@ -1037,14 +1082,35 @@ kk_image_plane_create_texture(struct kk_image_plane *plane,
+ {
+    uint64_t mem_offset_B = plane->mem_offset_B + offset_B;
+ 
+-   /* Linear textures in Metal need to be allocated through a buffer... */
+-   if (plane->layout.linear)
+-      return mtl_new_texture_with_descriptor_linear(plane->mem->bo->map, layout,
+-                                                    mem_offset_B);
+-
+-   return mtl_new_texture_with_descriptor(
+-      plane->mem->bo->mtl_handle, layout,
+-      kk_device_memory_heap_offset_B(plane->mem, mem_offset_B));
++   if (plane->layout.linear) {
++      /* Metal requires buffer-backed textures to be plain 2D, so a linear
++       * array layout gets a 2D texture and an array view of it. */
++      if (layout->type != MTL_TEXTURE_TYPE_2D_ARRAY || layout->layers != 1)
++         return mtl_new_texture_with_descriptor_linear(plane->mem->bo->map,
++                                                       layout, mem_offset_B);
++
++      struct kk_image_layout layout_2d = *layout;
++      layout_2d.type = MTL_TEXTURE_TYPE_2D;
++      mtl_texture *texture = mtl_new_texture_with_descriptor_linear(
++         plane->mem->bo->map, &layout_2d, mem_offset_B);
++      if (!texture)
++         return NULL;
++
++      const struct kk_view_layout view_layout = {
++         .view_type = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
++         .sample_count_sa = 1,
++         .format.pipe = layout->format.pipe,
++         .format.mtl = layout->format.mtl,
++         .num_levels = 1,
++         .array_len = 1,
++      };
++      mtl_texture *view = mtl_new_texture_view_with_no_swizzle(texture, &view_layout);
++      mtl_release(texture);
++      return view;
++   }
++   struct kk_bo *bo = plane->mem->bo->mtl_handle ? plane->mem->bo : plane->mem->host_tiled_bo;
++   return mtl_new_texture_with_descriptor(bo->mtl_handle, layout,
++                                          bo->heap_offset_B + mem_offset_B);
+ }
+ 
+ static VkResult
+@@ -1073,7 +1139,22 @@ kk_image_plane_bind(struct kk_device *dev, struct kk_image *image,
+       if (result != VK_SUCCESS)
+          return result;
+    }
+-   assert(plane->memoryless || plane->layout.linear || mem->bo->mtl_handle);
++   struct kk_bo *image_bo = mem->bo;
++   if (!plane->memoryless && !plane->layout.linear && !image_bo->mtl_handle) {
++      /* Venus can bind non-exported tiled images to a host-pointer allocation.
++       * Metal requires heap storage for these. Explicitly shared images use the
++       * imported buffer through the linear path above. */
++      simple_mtx_lock(&mem->transient_mutex);
++      VkResult result = VK_SUCCESS;
++      if (!mem->host_tiled_bo)
++         result = kk_alloc_bo_options(dev, &mem->vk.base, mem->vk.size, 0,
++            MTL_RESOURCE_TRACKING_MODE_UNTRACKED | MTL_RESOURCE_STORAGE_MODE_SHARED,
++            &mem->host_tiled_bo);
++      image_bo = mem->host_tiled_bo;
++      simple_mtx_unlock(&mem->transient_mutex);
++      if (result != VK_SUCCESS)
++         return result;
++   }
+ 
+    plane->mem = mem;
+    plane->mem_offset_B = *offset_B;
+@@ -1085,7 +1166,7 @@ kk_image_plane_bind(struct kk_device *dev, struct kk_image *image,
+    if (image->vk.base.object_name)
+       mtl_resource_set_label(plane->mtl_handle, image->vk.base.object_name);
+ 
+-   plane->addr = mem->bo ? mem->bo->gpu + *offset_B : 0;
++   plane->addr = image_bo ? image_bo->gpu + *offset_B : 0;
+ 
+    /* Create auxiliary 2D array texture for 3D images so we can use 2D views of
+     * it */
+@@ -1098,8 +1179,7 @@ kk_image_plane_bind(struct kk_device *dev, struct kk_image *image,
+       array_layout.layers = array_layout.layers * array_layout.depth_px;
+       array_layout.depth_px = 1u;
+       plane->mtl_handle_array = mtl_new_texture_with_descriptor(
+-         mem->bo->mtl_handle, &array_layout,
+-         kk_device_memory_heap_offset_B(mem, *offset_B));
++         image_bo->mtl_handle, &array_layout, image_bo->heap_offset_B + *offset_B);
+       if (plane->mtl_handle_array == NULL)
+          return vk_error(dev, VK_ERROR_OUT_OF_DEVICE_MEMORY);
+       if (image->vk.base.object_name)
+diff --git a/src/kosmickrisp/vulkan/kk_physical_device.c b/src/kosmickrisp/vulkan/kk_physical_device.c
+index c00aa7c..7ed97a4 100644
+--- a/src/kosmickrisp/vulkan/kk_physical_device.c
++++ b/src/kosmickrisp/vulkan/kk_physical_device.c
+@@ -77,7 +77,9 @@ kk_get_device_extensions(const struct kk_instance *instance,
+       .KHR_device_group = true,
+       .KHR_external_fence = true,
+       .KHR_external_memory = true,
+-      .KHR_external_memory_fd = true,
++      /* Stella transports guest dma-bufs as shared host pages. The renderer
++       * selects that path only when native opaque-fd export is absent. */
++      .KHR_external_memory_fd = false,
+       .KHR_external_semaphore = true,
+       .KHR_get_memory_requirements2 = true,
+       .KHR_maintenance1 = true,

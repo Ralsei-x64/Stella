@@ -1,0 +1,138 @@
+diff --git a/src/kosmickrisp/vulkan/kk_interlock_draw.c b/src/kosmickrisp/vulkan/kk_interlock_draw.c
+index e2702bc..eea6ba9 100644
+--- a/src/kosmickrisp/vulkan/kk_interlock_draw.c
++++ b/src/kosmickrisp/vulkan/kk_interlock_draw.c
+@@ -227,7 +227,8 @@ kk_interlock_render_batch(struct kk_interlock_draw *p, unsigned program,
+    }
+    if (program == KK_INTERLOCK_REPLAY)
+       mtl_set_depth_stencil_state(enc, p->replace);
+-   unsigned arity = program == KK_INTERLOCK_CAPTURE ? p->raster_arity : 3;
++   unsigned arity = program == KK_INTERLOCK_CAPTURE ?
++      (env->source_lines_expanded ? 6 : p->raster_arity) : 3;
+    mtl_draw_primitives(enc, program == KK_INTERLOCK_CAPTURE ? p->capture_type : MTL_PRIMITIVE_TYPE_TRIANGLE,
+       program == KK_INTERLOCK_CAPTURE ? p->primitive * arity : 0,
+       program == KK_INTERLOCK_REPLAY ? 3 : count * arity, 1, 0);
+@@ -398,7 +399,11 @@ kk_interlock_prepare_draw(struct kk_cmd_buffer *cmd, struct kk_ptr parameters,
+    unsigned source_arity = p->info.source_vertices_per_primitive;
+    p->raster_arity = source_arity < 3 ? source_arity :
+       env->geometry.polygon_mode == VK_POLYGON_MODE_LINE ? 2 : 3;
+-   p->capture_type = p->raster_arity == 1 ? MTL_PRIMITIVE_TYPE_POINT :
++   env->source_lines_expanded = !captured && source_arity == 2 &&
++      dyn->rs.line.width > 1.0f && !dyn->rs.line.stipple.enable &&
++      (dyn->rs.line.mode == VK_LINE_RASTERIZATION_MODE_DEFAULT ||
++       dyn->rs.line.mode == VK_LINE_RASTERIZATION_MODE_RECTANGULAR);
++   p->capture_type = env->source_lines_expanded ? MTL_PRIMITIVE_TYPE_TRIANGLE : p->raster_arity == 1 ? MTL_PRIMITIVE_TYPE_POINT :
+       p->raster_arity == 2 ? MTL_PRIMITIVE_TYPE_LINE : MTL_PRIMITIVE_TYPE_TRIANGLE;
+    env->source_vertices_per_primitive = p->raster_arity;
+    env->source_points_expanded = source_arity == 3 &&
+@@ -493,7 +498,7 @@ kk_interlock_prepare_draw(struct kk_cmd_buffer *cmd, struct kk_ptr parameters,
+       result = kk_interlock_pipeline_get(dev, shader->interlock_pipeline, i,
+          i == KK_INTERLOCK_REPLAY ? formats : empty,
+          i == KK_INTERLOCK_TRANSACTION ? 1 : env->samples,
+-         i != KK_INTERLOCK_CAPTURE ? MTL_PRIMITIVE_TOPOLOGY_CLASS_TRIANGLE :
++         i != KK_INTERLOCK_CAPTURE || env->source_lines_expanded ? MTL_PRIMITIVE_TOPOLOGY_CLASS_TRIANGLE :
+             p->raster_arity == 1 ? MTL_PRIMITIVE_TOPOLOGY_CLASS_POINT :
+             p->raster_arity == 2 ? MTL_PRIMITIVE_TOPOLOGY_CLASS_LINE :
+             MTL_PRIMITIVE_TOPOLOGY_CLASS_TRIANGLE,
+diff --git a/src/kosmickrisp/vulkan/kk_interlock_envelope.h b/src/kosmickrisp/vulkan/kk_interlock_envelope.h
+index ff45ca7..a1e6d5a 100644
+--- a/src/kosmickrisp/vulkan/kk_interlock_envelope.h
++++ b/src/kosmickrisp/vulkan/kk_interlock_envelope.h
+@@ -59,6 +59,7 @@ struct kk_interlock_envelope {
+    uint32_t source_view;
+    uint32_t source_view_ordinal;
+    uint32_t source_points_expanded;
++   uint32_t source_lines_expanded;
+    /* Group-indirect arguments; clip_grid keeps the logical primitive count. */
+    uint32_t source_dispatch[3];
+ };
+diff --git a/src/kosmickrisp/vulkan/kk_interlock_render_nir.h b/src/kosmickrisp/vulkan/kk_interlock_render_nir.h
+index 8b61982..f7935da 100644
+--- a/src/kosmickrisp/vulkan/kk_interlock_render_nir.h
++++ b/src/kosmickrisp/vulkan/kk_interlock_render_nir.h
+@@ -130,6 +130,13 @@ kk_interlock_capture_shader(const nir_shader_compiler_options *options,
+    nir_def *coord = nir_load_frag_coord(&b);
+    nir_def *pixel = nir_f2u32(&b, nir_channels(&b, coord, 3));
+    nir_def *primitive = s->capture_job ? s->capture_job(&b, s->data) : nir_load_primitive_id(&b);
++   if (!s->capture_job) {
++      /* Both triangles of the expanded rectangle belong to the same source
++       * segment and share its sample coverage and application primitive ID. */
++      primitive = nir_bcsel(&b, nir_ine_imm(&b,
++         kk_interlock_env(&b, params, source_lines_expanded), 0),
++         nir_ushr_imm(&b, primitive, 1), primitive);
++   }
+    nir_def *layer = nir_load_layer_id(&b);
+    nir_def *selected_layer = nir_ieq(&b, layer,
+       kk_interlock_env(&b, params, layer));
+diff --git a/src/kosmickrisp/vulkan/kk_interlock_source_nir.h b/src/kosmickrisp/vulkan/kk_interlock_source_nir.h
+index a54b71c..2185086 100644
+--- a/src/kosmickrisp/vulkan/kk_interlock_source_nir.h
++++ b/src/kosmickrisp/vulkan/kk_interlock_source_nir.h
+@@ -4,6 +4,7 @@
+ 
+ #include "compiler/nir/nir_builder.h"
+ #include "poly/geometry.h"
++#include "kk_interlock_envelope.h"
+ #include "poly/geometry_capture.h"
+ 
+ static nir_def *
+@@ -61,9 +62,26 @@ kk_interlock_source_vertex_shader(const struct poly_gs_capture_info *info,
+       options, "interlock captured source rasterization");
+    b.shader->info.io_lowered = true;
+    unsigned slots = util_bitcount64(info->outputs);
+-   nir_def *address = nir_iadd(&b,
+-      kk_interlock_source_load(&b, 1, 64, offsetof(struct poly_geometry_capture, output), 8),
+-      nir_u2u64(&b, nir_imul_imm(&b, nir_load_vertex_id(&b), (slots + 1) * 16)));
++   nir_def *vertex = nir_load_vertex_id(&b);
++   nir_def *expand = NULL, *side = NULL, *endpoint = NULL;
++   if (arity == 2) {
++      expand = nir_ine_imm(&b, kk_interlock_source_load(&b, 1, 32,
++         offsetof(struct kk_interlock_envelope, source_lines_expanded), 4), 0);
++      /* Six corners: A-, B-, B+, A-, B+, A+. Keep the original
++       * endpoint's varyings and homogeneous W on each side. */
++      nir_def *corner = nir_umod_imm(&b, vertex, 6);
++      endpoint = nir_ior(&b, nir_ior(&b, nir_ieq_imm(&b, corner, 1),
++         nir_ieq_imm(&b, corner, 2)), nir_ieq_imm(&b, corner, 4));
++      side = nir_bcsel(&b, nir_ior(&b, nir_ieq_imm(&b, corner, 2),
++         nir_uge_imm(&b, corner, 4)), nir_imm_float(&b, 0.5f), nir_imm_float(&b, -0.5f));
++      vertex = nir_bcsel(&b, expand, nir_iadd(&b,
++         nir_imul_imm(&b, nir_udiv_imm(&b, vertex, 6), 2),
++         nir_b2i32(&b, endpoint)), vertex);
++   }
++   nir_def *output = kk_interlock_source_load(&b, 1, 64,
++      offsetof(struct poly_geometry_capture, output), 8);
++   nir_def *address = nir_iadd(&b, output,
++      nir_u2u64(&b, nir_imul_imm(&b, vertex, (slots + 1) * 16)));
+    nir_def *viewport = nir_imm_int(&b, 0);
+    if (info->outputs & VARYING_BIT_VIEWPORT) {
+       unsigned slot = util_bitcount64(info->outputs & BITFIELD64_MASK(VARYING_SLOT_VIEWPORT));
+@@ -88,6 +106,29 @@ kk_interlock_source_vertex_shader(const struct poly_gs_capture_info *info,
+             nir_fmul_imm(&b, nir_fadd_imm(&b,
+                nir_fdiv(&b, nir_channels(&b, value, 3), w), 1), 0.5f),
+             nir_channels(&b, vp, 12), nir_channels(&b, vp, 3));
++         if (arity == 2) {
++            nir_push_if(&b, expand);
++            nir_def *other_vertex = nir_ixor(&b, vertex, nir_imm_int(&b, 1));
++            nir_def *other_address = nir_iadd(&b, output,
++               nir_u2u64(&b, nir_imul_imm(&b, other_vertex, (slots + 1) * 16)));
++            nir_def *other = nir_load_global_constant(&b, 4, 32,
++               nir_iadd_imm(&b, other_address, (packed - 1) * 16), .align_mul = 16);
++            nir_def *other_screen = nir_ffma(&b, nir_fmul_imm(&b, nir_fadd_imm(&b,
++               nir_fdiv(&b, nir_channels(&b, other, 3), nir_channel(&b, other, 3)), 1), 0.5f),
++               nir_channels(&b, vp, 12), nir_channels(&b, vp, 3));
++            nir_def *delta = nir_bcsel(&b, endpoint, nir_fsub(&b, screen, other_screen),
++               nir_fsub(&b, other_screen, screen));
++            nir_def *dx = nir_channel(&b, delta, 0), *dy = nir_channel(&b, delta, 1);
++            nir_def *normal = nir_vec2(&b, nir_fneg(&b, dy), dx);
++            nir_def *inv_length = nir_frsq(&b, nir_fmax(&b, nir_fdot2(&b, delta, delta),
++               nir_imm_float(&b, 1e-30f)));
++            nir_def *width = kk_interlock_source_load(&b, 1, 32,
++               offsetof(struct poly_geometry_capture, line_width), 4);
++            nir_def *expanded = nir_ffma(&b, normal,
++               nir_fmul(&b, inv_length, nir_fmul(&b, width, side)), screen);
++            nir_pop_if(&b, NULL);
++            screen = nir_if_phi(&b, expanded, screen);
++         }
+          nir_def *position = nir_fmul(&b,
+             nir_fadd_imm(&b, nir_fmul_imm(&b, nir_fdiv(&b, screen, size), 2), -1), w);
+          value = nir_vec4(&b, nir_channel(&b, position, 0),

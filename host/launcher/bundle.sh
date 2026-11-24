@@ -127,6 +127,8 @@ for lproj in "$HERE/.build/l10n"/*.lproj; do
     cp -R "$lproj" "$TMP/Contents/Resources/"
 done
 
+ditto "$OUT/steamac-vm_steamac-vm.bundle" "$TMP/Contents/Resources/steamac-vm_steamac-vm.bundle"
+
 # App icon: AppIcon.icon (Icon Composer document) compiled by Xcode 26's actool into Assets.car
 # (layered Liquid Glass icon for macOS 26, pre-rendered squircle renditions for macOS 15) and an
 # AppIcon.icns fallback; Info.plist names them (CFBundleIconName / CFBundleIconFile = AppIcon).

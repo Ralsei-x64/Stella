@@ -42,7 +42,7 @@ int main(void) {
       uint64_t layer = 0;
       uint64_t view = wmtr_present_create_view(NULL, 0x1234, (void *)dev, &layer);
       dispatch_sync(dispatch_get_main_queue(), ^{
-        CHECK(view == (uint64_t)vm, "returned view is not the VMView");
+        CHECK(view != 0, "missing presentation handle");
         CHECK(layer && [vm.layer.sublayers containsObject:(CALayer *)layer], "game layer not attached to the VMView layer");
         CHECK(layer && ((CAMetalLayer *)layer).device == dev, "layer device");
         CHECK(layer && NSEqualRects(NSRectFromCGRect(((CALayer *)layer).frame), NSRectFromCGRect(vm.layer.bounds)), "layer frame");
@@ -50,14 +50,24 @@ int main(void) {
         CHECK(layer && ((CAMetalLayer *)layer).maximumDrawableCount == 2, "game layer does not default to 2 drawables");
         CHECK(((TestVMView *)vm).policyApplied >= 1, "view's layer policy not re-applied after adding the game layer");
       });
+      // A replacement swapchain may reuse the same HWND while the original is alive.
+      uint64_t replacementLayer = 0;
+      uint64_t replacement = wmtr_present_create_view(NULL, 0x1234, (void *)dev, &replacementLayer);
+      CHECK(view != replacement && replacement != 0, "two swapchains share their release handle");
       wmtr_present_release_view(NULL, view);
-      dispatch_async(dispatch_get_main_queue(), ^{
-        dispatch_async(dispatch_get_main_queue(), ^{
-          CHECK(![vm.layer.sublayers count], "game layer not detached");
-          printf(failures ? "wmtr_present_test: %d FAILED\n" : "wmtr_present_test: all passed\n", failures);
-          exit(failures != 0);
-        });
+      dispatch_sync(dispatch_get_main_queue(), ^{
+        CHECK(![vm.layer.sublayers containsObject:(CALayer *)layer], "released layer still attached");
+        CHECK(replacementLayer && [vm.layer.sublayers containsObject:(CALayer *)replacementLayer],
+              "closing the first swapchain detached the replacement");
       });
+      wmtr_present_release_view(NULL, replacement);
+      dispatch_sync(dispatch_get_main_queue(), ^{
+        CHECK(![vm.layer.sublayers count], "replacement layer still attached after release");
+      });
+      [(id)layer release];
+      [(id)replacementLayer release];
+      printf(failures ? "wmtr_present_test: %d FAILED\n" : "wmtr_present_test: all passed\n", failures);
+      exit(failures != 0);
     });
     [NSApp run];
   }

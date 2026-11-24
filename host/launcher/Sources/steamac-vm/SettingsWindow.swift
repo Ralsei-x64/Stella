@@ -491,20 +491,32 @@ private struct GeneralTab: View {
     @EnvironmentObject var settings: LauncherSettings
     @EnvironmentObject var context: SettingsContext
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         Form {
             Section {
                 Toggle(isOn: $settings.showOverlay) {
                     Label2(title: "Show boot and shutdown overlay",
-                           detail: String(localized: "Full-window FX progress while SteamOS starts, restarts and shuts down. Off, or after a click: a small progress pill."), now: true)
+                           detail: String(localized: "Shows startup and shutdown progress in the Stella window."), now: true)
                 }
+                Toggle(isOn: $settings.verboseOverlay) {
+                    Label2(title: "Verbose boot and shutdown",
+                           detail: String(localized: "Show the live SteamOS log during startup and shutdown."), now: true)
+                }
+                .disabled(!settings.showOverlay)
                 Toggle(isOn: $settings.showStallIndicator) {
                     Label2(title: "Show indicator when the GPU goes idle",
-                           detail: String(localized: "\"Still working\" card over the picture after 2 s without GPU work from SteamOS (loading, shader compiles)."),
+                           detail: String(localized: "Shows a status card after 2 seconds without GPU activity, including while a game loads or compiles shaders."),
                            now: true)
                 }
                 Toggle(isOn: $settings.openFullscreen) {
                     Label2(title: "Open in full screen", now: false, key: .openFullscreen)
+                }
+            } header: {
+                if let mark = colorScheme == .dark ? StellaBrand.onDark : StellaBrand.onLight {
+                    Image(nsImage: mark).resizable().scaledToFit().frame(height: 17)
+                        .accessibilityLabel(Text(verbatim: "Stella"))
                 }
             }
             Section {

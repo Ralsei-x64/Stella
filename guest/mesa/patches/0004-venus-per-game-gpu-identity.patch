@@ -1,0 +1,26 @@
+Subject: [PATCH] venus: expose a per-process GPU identity for game compatibility
+
+--- a/src/virtio/vulkan/vn_physical_device.c
++++ b/src/virtio/vulkan/vn_physical_device.c
+@@ -592,8 +592,21 @@
+    props->conformanceVersion.subminor = 0;
+    props->conformanceVersion.patch = 0;
+ 
+    vn_physical_device_init_uuids(physical_dev);
++
++   /* Keep the underlying device UUID for cross-process adapter matching.
++    * Only change the public PCI identity of a game opting into this profile. */
++   const char *vendor = os_get_option("STEAMAC_GPU_VENDOR");
++   if (vendor && !strcmp(vendor, "amd")) {
++      props->vendorID = 0x1002;
++      props->deviceID = 0x73bf;
++      snprintf(props->deviceName, sizeof(props->deviceName), "AMD Radeon RX 6800 XT");
++   } else if (vendor && !strcmp(vendor, "nvidia")) {
++      props->vendorID = 0x10de;
++      props->deviceID = 0x2484;
++      snprintf(props->deviceName, sizeof(props->deviceName), "NVIDIA GeForce RTX 3070");
++   }
+ }
+ 
+ static void
+ vn_physical_device_init_properties(struct vn_physical_device *physical_dev)

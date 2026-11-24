@@ -40,11 +40,20 @@ import tempfile
 
 # appid -> (the environment assignments the title needs, in order;
 #           the Vulkan features the device must advertise for them to help).
+DOOM_APPID = "782330"
+DOOM_LAUNCHER = "/usr/lib/steamac/doom-eternal"
+
 TITLES = {
+    DOOM_APPID: ((), ()),
     # Dragon's Dogma 2: D3D feature level 12_1 and shader model 6_6, which needs the 64-bit atomics
     # that are off by default (see the module docstring).
     "2054970": (("VKD3D_DISABLE_EXTENSIONS=", "VKD3D_FEATURE_LEVEL=12_1", "VKD3D_SHADER_MODEL=6_6"),
                 ("shaderBufferInt64Atomics", "shaderImageInt64Atomics")),
+}
+
+GPU_IDENTITIES = {
+    "amd": ("1002", "73bf", "AMD Radeon RX 6800 XT"),
+    "nvidia": ("10de", "2484", "NVIDIA GeForce RTX 3070"),
 }
 
 VDF_PATH = ("UserLocalConfigStore", "Software", "Valve", "Steam", "apps")
@@ -171,6 +180,16 @@ def device_backs(needs):
 
 def want_launch_options(current, needed):
     """The LaunchOptions value to write, or None to leave the title alone."""
+    if needed and needed[-1] == DOOM_LAUNCHER:
+        # Keep user environment assignments and wrapper commands ahead of Proton.
+        if current and "%command%" not in current:
+            return None
+        base = current or "%command%"
+        if len(needed) > 1:
+            base = want_launch_options(base, needed[:-1]) or base
+        if DOOM_LAUNCHER not in base.split():
+            base = base.replace("%command%", DOOM_LAUNCHER + " %command%", 1)
+        return None if base == current else base
     if current:
         if "%command%" not in current:
             # Raw arguments: prefixing environment words would change what Steam runs.
@@ -222,17 +241,25 @@ def profile_titles():
     for appid, profile in profiles["games"].items():
         if "env" not in profile:
             continue
-        words = []
+        assignments = {}
         for word in profile["env"].split():
             if word == "STEAMAC_DISABLE_MIC=1":
                 # libpulse adds this one client property alongside Steam's existing properties.
-                words.append("PULSE_PROP_stella_block_record=1")
+                assignments["PULSE_PROP_stella_block_record"] = "1"
                 continue
             name, value = word.split("=", 1)
             if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
                 raise ValueError("invalid profile environment name")
-            # Values are data, not shell code (including telemetry's allowed ';').
-            words.append(name + "=" + (shlex.quote(value) if value else ""))
+            assignments[name] = value
+        identity = GPU_IDENTITIES.get(assignments.get("STEAMAC_GPU_VENDOR"))
+        if identity:
+            vendor, device, description = identity
+            # DXMT obtains its adapter from Metal directly. DXVK also applies its own DXGI quirks.
+            dxgi = f'dxgi.customVendorId={vendor};dxgi.customDeviceId={device};dxgi.customDeviceDesc="{description}"'
+            for key in ("DXVK_CONFIG", "DXMT_CONFIG"):
+                assignments[key] = ";".join(filter(None, (assignments.get(key), dxgi)))
+        # Quote complete values including spaces and semicolons for Steam's shell.
+        words = [name + "=" + (shlex.quote(value) if value else "") for name, value in assignments.items()]
         result[appid] = (tuple(words), ())
     return result
 
@@ -253,6 +280,8 @@ def main():
             written, pending = {}, {}
             for appid in sorted(set(sources) | set(accounts.get(account, {}))):
                 needed, needs = sources.get(appid, ((), ()))
+                if appid == DOOM_APPID:
+                    needed = (*needed, DOOM_LAUNCHER)
                 path = (*VDF_PATH, appid, "LaunchOptions")
                 stored = values.get(tuple(part.lower() for part in path))
                 current = stored[0] if stored else None

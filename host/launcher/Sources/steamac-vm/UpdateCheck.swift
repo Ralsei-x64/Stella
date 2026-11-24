@@ -27,7 +27,8 @@ final class UpdateChecker {
     static let shared = UpdateChecker()
 
     static let latestURL = URL(string: "https://api.github.com/repos/Ralsei-x64/Stella/releases/latest")!
-    static let releasesPage = URL(string: "https://github.com/Ralsei-x64/Stella/releases")!
+    static let repositoryURL = URL(string: "https://github.com/Ralsei-x64/Stella")!
+    static let releasesPage = repositoryURL.appendingPathComponent("releases")
     static let urlEnv = "STEAMAC_UPDATE_URL", fakeVersionEnv = "STEAMAC_FAKE_VERSION"
     static let interval: TimeInterval = 6 * 3600
     static let timeout: TimeInterval = 10

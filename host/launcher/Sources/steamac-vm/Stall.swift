@@ -1,4 +1,5 @@
 import AppKit
+import CoreImage
 import Darwin
 import QuartzCore
 
@@ -17,7 +18,7 @@ import QuartzCore
 /// The idle window starts at the latest of: last GPU work, gate opening (overlay gone, setting
 /// on), the game getting focus — so stale idle time never fires at once. The wording comes from
 /// the guest agent's heartbeat (`alive <uptime_ms> <loadavg1>` once a second over fx.progress)
-/// and this process's CPU time (vCPU threads included): alive → "Still working…" + CPU, no
+/// and this process's CPU time (vCPU threads included): alive → loading guidance, no
 /// heartbeat for `heartbeatTimeout` → "SteamOS is not responding…". With perf stats on it also
 /// logs the counter rates and the longest idle stretch every 5 s. Main thread only.
 final class StallMonitor {
@@ -265,12 +266,8 @@ final class StallMonitor {
         if notResponding(at: now) {
             return (String(localized: "SteamOS is not responding…"), String(localized: "waiting (\(Int(idle)) s)"))
         }
-        let title = String(localized: "Still working — loading or compiling shaders…")
-        let cores = String(format: "%.1f", currentCPU())
-        let detail = heartbeatAge(at: now).map { $0 <= Self.heartbeatTimeout } == true
-            ? String(localized: "VM CPU \(cores) cores · guest alive")
-            : String(localized: "VM CPU \(cores) cores")
-        return (title, detail)
+        return (String(localized: "Don’t Panic!"),
+                String(localized: "If the screen is frozen, the VM is most likely compiling shaders or loading content."))
     }
 
     /// For the log: "guest alive, CPU 2.9 cores".
@@ -392,21 +389,27 @@ final class StallMonitor {
     }
 }
 
-/// The indicator: a translucent card in the lower third with a spinner and two lines of text,
-/// over the last guest frame (FX overlay colors). Never takes mouse events, except on its
-/// "Report…" link while it says SteamOS is not responding; when hidden it is `isHidden` with
-/// every animation removed.
-final class StallIndicatorView: NSView {
-    private let card = CALayer()
-    private let track = CAShapeLayer()
-    private let arc = CAShapeLayer()
-    private let titleLayer = CATextLayer()
+/// A pass-through status card over the last guest frame. The Report link accepts clicks
+/// when the monitor confirms a lost heartbeat.
+final class StallIndicatorView: LoaderCardView {
+    override var minimumCardHeight: CGFloat { 128 }
+}
+
+class LoaderCardView: NSView {
+    var minimumCardHeight: CGFloat { 84 }
+    private let cardShadow = StellaCardShadowLayer()
+    let surface = StellaCardSurface()
+    private var card: StellaStatusCardLayer { surface.card }
+    private static let snapshotContext = CIContext()
+    private let spinner = CALayer()
+    private let titleLayer = StellaTitleLayer()
     private let detailLayer = CATextLayer()
+    private let statusLayer = CATextLayer()
     private let linkLayer = CATextLayer()
     private var title = ""
     private var detail = ""
+    private var status = ""
     private(set) var shown = false
-    private var fading = false
     /// Shown or hidden (after the fade-out), and the "Report…" link placed or removed on a card
     /// already shown: the window hides the Mac cursor over the picture and shows it over the
     /// link, so it re-decides then.
@@ -415,11 +418,11 @@ final class StallIndicatorView: NSView {
     var currentTitle: String { title }
     var currentDetail: String { detail }
     /// The card and the spinner, in view coordinates (self-test pixel checks).
-    var cardFrame: CGRect { card.frame }
-    var spinnerFrame: CGRect { arc.frame.offsetBy(dx: card.frame.minX, dy: card.frame.minY) }
+    var cardFrame: CGRect { surface.frame }
+    var spinnerFrame: CGRect { spinner.frame.offsetBy(dx: cardFrame.minX, dy: cardFrame.minY) }
     /// "Report…" on the card (Report a Problem), in view coordinates; empty when not shown.
     var reportLinkFrame: CGRect {
-        showsReportLink && onReport != nil ? linkLayer.frame.offsetBy(dx: card.frame.minX, dy: card.frame.minY) : .zero
+        showsReportLink && onReport != nil ? linkLayer.frame.offsetBy(dx: cardFrame.minX, dy: cardFrame.minY) : .zero
     }
     /// Opens Report a Problem (the link is shown only when this is set).
     var onReport: (() -> Void)?
@@ -440,27 +443,23 @@ final class StallIndicatorView: NSView {
         wantsLayer = true
         layer = CALayer()
         autoresizingMask = [.width, .height]
-        card.backgroundColor = OverlayView.color(0x171a21, 0.86)
-        card.borderColor = OverlayView.color(0x66c0f4, 0.22)
-        card.borderWidth = 1
-        card.shadowColor = OverlayView.color(0x000000)
-        card.shadowOpacity = 0.5
-        card.shadowOffset = CGSize(width: 0, height: -2)
-        track.fillColor = nil
-        track.strokeColor = OverlayView.color(0xffffff, 0.1)
-        arc.fillColor = nil
-        arc.strokeColor = OverlayView.color(0x66c0f4)
-        arc.lineCap = .round
-        arc.strokeEnd = 0.7
-        for t in [titleLayer, detailLayer, linkLayer] {
-            t.alignmentMode = .left
-            t.truncationMode = .end
-            t.isWrapped = false
-            card.addSublayer(t)
+        layer!.backgroundColor = OverlayView.color(0, 0.20)
+        spinner.opacity = 0.55
+        for alpha in [1.0, 0.87, 0.75, 0.63, 0.51, 0.39, 0.27, 0.15] {
+            let blade = CALayer()
+            blade.backgroundColor = OverlayView.color(0xd9d9d9, alpha)
+            spinner.addSublayer(blade)
         }
-        card.addSublayer(track)
-        card.addSublayer(arc)
-        layer!.addSublayer(card)
+        detailLayer.alignmentMode = .left
+        detailLayer.isWrapped = true
+        statusLayer.alignmentMode = .left
+        linkLayer.alignmentMode = .left
+        linkLayer.truncationMode = .end
+        for l in [spinner, titleLayer, detailLayer, statusLayer, linkLayer] { card.addSublayer(l) }
+        setAccessibilityElement(true)
+        setAccessibilityRole(.group)
+        layer!.addSublayer(cardShadow)
+        addSubview(surface)
         alphaValue = 0
         isHidden = true
     }
@@ -468,7 +467,7 @@ final class StallIndicatorView: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        guard !isHidden, alphaValue > 0, let superview else { return nil }
+        guard shown, alphaValue > 0, let superview else { return nil }
         return reportLinkFrame.contains(convert(point, from: superview)) ? self : nil
     }
 
@@ -486,93 +485,59 @@ final class StallIndicatorView: NSView {
 
     // MARK: visibility
 
-    /// Fade in (0.25 s) and start the spinner.
+    /// Pop in on first appearance and start the spinner.
     func show() {
-        guard !shown || fading else { return }
+        guard !shown else { return }
         shown = true
-        fading = false
         isHidden = false
         needsLayout = true
         layoutSubtreeIfNeeded()
+        surface.transition(appearing: true, in: self, shadow: cardShadow)
         startSpinner()
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.25
-            animator().alphaValue = 1
-        }
         onVisibilityChange?()
     }
 
-    /// Fade out (0.2 s), then hide and drop every animation.
-    func hide() {
-        guard shown, !fading else { return }
+    func hide(animated: Bool = true) {
+        guard shown || (!animated && !isHidden) else { return }
         shown = false
-        fading = true
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.2
-            animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
+        surface.transition(appearing: false, in: self, shadow: cardShadow, animated: animated) { [weak self] in
             guard let self else { return }
-            self.fading = false
-            guard !self.shown else { return }
             self.isHidden = true
-            for l in [self.layer!, self.card, self.track, self.arc, self.titleLayer, self.detailLayer, self.linkLayer] { l.removeAllAnimations() }
+            for l in [self.layer!, self.card, self.spinner, self.titleLayer, self.detailLayer, self.statusLayer, self.linkLayer] { l.removeAllAnimations() }
             self.onVisibilityChange?()
-        })
+        }
     }
 
     /// True when hidden and idle (no layer animations running).
     var isIdle: Bool {
-        isHidden && [layer!, card, track, arc, titleLayer, detailLayer, linkLayer].allSatisfy { ($0.animationKeys() ?? []).isEmpty }
+        isHidden && [layer!, surface.layer!, card, spinner, titleLayer, detailLayer, statusLayer, linkLayer].allSatisfy { ($0.animationKeys() ?? []).isEmpty }
     }
 
     private func startSpinner() {
-        let a = CABasicAnimation(keyPath: "transform.rotation.z")
-        a.fromValue = 0
-        a.toValue = -2 * Double.pi
-        a.duration = 0.9
-        a.repeatCount = .infinity
-        arc.add(a, forKey: "spin")
+        guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
+        let rotation = CAKeyframeAnimation(keyPath: "transform.rotation.z")
+        rotation.values = (0...8).map { -Double($0) * .pi / 4 }
+        rotation.calculationMode = .discrete
+        rotation.duration = 0.8
+        rotation.repeatCount = .infinity
+        spinner.add(rotation, forKey: "spin")
     }
 
     // MARK: content
 
-    func update(title: String, detail: String) {
-        guard title != self.title || detail != self.detail else { return }
-        // Same-length details (monospaced digits) keep the card's width: no relayout.
-        let resize = title != self.title || detail.count != self.detail.count
+    func update(title: String, detail: String, status: String = "") {
+        guard title != self.title || detail != self.detail || status != self.status else { return }
         self.title = title
         self.detail = detail
-        if resize { needsLayout = true } else { applyText() }
+        self.status = status
+        setAccessibilityLabel(title)
+        setAccessibilityValue([detail, status].filter { !$0.isEmpty }.joined(separator: "\n"))
+        needsLayout = true
     }
 
-    private var scaleFactor: CGFloat { max(0.85, min(1.6, min(bounds.width / 1280, bounds.height / 800))) }
-
-    private var titleString: NSAttributedString {
-        NSAttributedString(string: title, attributes: [
-            .font: NSFont.systemFont(ofSize: 15 * scaleFactor, weight: .semibold),
-            .foregroundColor: OverlayView.color(0xc7d5e0)])
-    }
-
-    private var detailString: NSAttributedString {
-        NSAttributedString(string: detail, attributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 12 * scaleFactor, weight: .regular),
-            .foregroundColor: OverlayView.color(0x8f98a0)])
-    }
-
-    private var linkString: NSAttributedString {
-        NSAttributedString(string: String(localized: "Report…", comment: "Link to report an unresponsive VM to the developer"), attributes: [
-            .font: NSFont.systemFont(ofSize: 13 * scaleFactor, weight: .semibold),
-            .foregroundColor: OverlayView.color(0x66c0f4),
-            .underlineStyle: NSUnderlineStyle.single.rawValue])
-    }
-
-    private func applyText() {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        titleLayer.string = titleString
-        detailLayer.string = detailString
-        CATransaction.commit()
-    }
+    private var scaleFactor: CGFloat { max(0.62, min(bounds.width / 1920, bounds.height / 1080)) }
+    // Figma exports its 10 px background blur as a Gaussian with a 5 px standard deviation.
+    private var backdropSigma: CGFloat { 5 * scaleFactor }
 
     override func viewDidChangeBackingProperties() {
         super.viewDidChangeBackingProperties()
@@ -589,38 +554,54 @@ final class StallIndicatorView: NSView {
         let b = bounds
         let k = scaleFactor
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-        let t = titleString, d = detailString
-        let link = showsReportLink && onReport != nil ? linkString : nil
-        let pad = 18 * k, spin = 26 * k, gap = 14 * k
-        let textWidth = ceil(max(t.size().width, d.size().width)) + 2
-        let linkWidth = link.map { ceil($0.size().width) + 2 } ?? 0
-        let linkSpace = link == nil ? 0 : gap + linkWidth
-        let width = min(b.width - 32, pad + spin + gap + textWidth + linkSpace + pad + 4 * k)
-        let height = 62 * k
+        let pad = 31 * k, spin = 32 * k, gap = 20 * k
+        let width = min(573 * k, max(0, b.width - 16))
+        let textX = pad + spin + gap
+        let textWidth = max(1, width - textX - pad)
+        let titleFont = NSFont.systemFont(ofSize: 24 * k, weight: .medium)
+        let bodyFont = NSFont.systemFont(ofSize: 18 * k)
+        let body = NSAttributedString(string: detail, attributes: [
+            .font: bodyFont, .foregroundColor: OverlayView.color(0xffffff, 0.5)])
+        let detailHeight = ceil(body.boundingRect(with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+                                                  options: [.usesLineFragmentOrigin, .usesFontLeading]).height)
+        let titleHeight = ceil(29 * k)
+        let statusHeight = status.isEmpty ? 0 : ceil(21 * k)
+        let statusBlock = status.isEmpty ? 0 : 5 * k + statusHeight
+        let hasLink = showsReportLink && onReport != nil
+        let linkHeight = hasLink ? ceil(23 * k) : 0
+        let linkGap = hasLink ? 5 * k : 0
+        let textHeight = titleHeight + (detail.isEmpty ? 0 : 5 * k + detailHeight) + statusBlock + linkGap + linkHeight
+        let height = max(minimumCardHeight * k, textHeight + 52 * k)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        for l in [layer!, card, track, arc, titleLayer, detailLayer, linkLayer] { l.contentsScale = scale }
-        card.frame = CGRect(x: (b.width - width) / 2, y: (b.height * 0.26 - height / 2).rounded(), width: width, height: height).integral
-        card.cornerRadius = 14 * k
-        card.shadowRadius = 18 * k
-        card.shadowPath = CGPath(roundedRect: card.bounds, cornerWidth: card.cornerRadius, cornerHeight: card.cornerRadius, transform: nil)
-        let spinFrame = CGRect(x: pad, y: (height - spin) / 2, width: spin, height: spin)
-        let line = max(2, 2.6 * k)
-        let circle = CGPath(ellipseIn: CGRect(x: line / 2, y: line / 2, width: spin - line, height: spin - line), transform: nil)
-        for s in [track, arc] {
-            s.frame = spinFrame
-            s.path = circle
-            s.lineWidth = line
+        for l in [layer!, spinner, titleLayer, detailLayer, statusLayer, linkLayer] { l.contentsScale = scale }
+        let cardFrame = CGRect(x: b.midX - width / 2, y: min(56 * k, b.height * 0.06), width: width, height: height)
+        surface.fit(cardFrame, shadow: cardShadow, designScale: k, backingScale: scale)
+        spinner.bounds = CGRect(x: 0, y: 0, width: spin, height: spin)
+        spinner.position = CGPoint(x: pad + spin / 2, y: height / 2)
+        for (i, blade) in (spinner.sublayers ?? []).enumerated() {
+            let angle = CGFloat(i) * .pi / 4
+            blade.bounds = CGRect(x: 0, y: 0, width: 4 * k, height: 10 * k)
+            blade.position = CGPoint(x: spin / 2 - sin(angle) * 11 * k, y: spin / 2 + cos(angle) * 11 * k)
+            blade.cornerRadius = 2 * k
+            blade.setAffineTransform(CGAffineTransform(rotationAngle: angle))
         }
-        let textX = pad + spin + gap
-        let textW = max(0, width - textX - pad - linkSpace)
-        titleLayer.frame = CGRect(x: textX, y: height / 2 + 1 * k, width: textW, height: 20 * k)
-        detailLayer.frame = CGRect(x: textX, y: height / 2 - 18 * k, width: textW, height: 16 * k)
-        linkLayer.frame = link == nil ? .zero : CGRect(x: width - pad - linkWidth, y: (height - 18 * k) / 2, width: linkWidth, height: 18 * k)
-        titleLayer.string = t
-        detailLayer.string = d
+        let bottom = (height - textHeight) / 2
+        titleLayer.frame = CGRect(x: textX, y: bottom + textHeight - titleHeight, width: textWidth, height: titleHeight)
+        titleLayer.setText(title, font: titleFont, alignment: .left)
+        detailLayer.frame = CGRect(x: textX, y: bottom + linkHeight + linkGap + statusBlock, width: textWidth, height: detailHeight)
+        detailLayer.string = body
+        statusLayer.isHidden = status.isEmpty
+        statusLayer.frame = CGRect(x: textX, y: bottom + linkHeight + linkGap, width: textWidth, height: statusHeight)
+        statusLayer.string = NSAttributedString(string: status, attributes: [
+            .font: NSFont.systemFont(ofSize: 18 * k, weight: .medium),
+            .foregroundColor: OverlayView.color(0xffffff, 0.5)])
+        linkLayer.isHidden = !hasLink
+        let link = NSAttributedString(string: String(localized: "Report…", comment: "Link to report an unresponsive VM to the developer"),
+                                      attributes: [.font: bodyFont, .foregroundColor: OverlayView.color(0x72bfff),
+                                                   .underlineStyle: NSUnderlineStyle.single.rawValue])
+        linkLayer.frame = hasLink ? CGRect(x: textX, y: bottom, width: min(textWidth, ceil(link.size().width) + 2), height: linkHeight) : .zero
         linkLayer.string = link
-        linkLayer.isHidden = link == nil
         CATransaction.commit()
         window?.invalidateCursorRects(for: self)
         if reportLinkChanged {
@@ -631,7 +612,21 @@ final class StallIndicatorView: NSView {
 
     /// Render the indicator (model values) over `background` at `scale` pixels per point.
     func renderImage(scale: CGFloat, under background: CGImage?) -> CGImage? {
-        renderLayerImage(scale: scale, under: background)
+        renderLayerImage(scale: scale, under: background) { ctx in
+            // A layer-tree snapshot has no WindowServer backdrop. Sample the same guest
+            // pixels at output resolution, including pixels beyond the card's rounded edges.
+            guard let background else { return }
+            let target = self.bounds.size
+            let input = CIImage(cgImage: background).transformed(by: CGAffineTransform(
+                scaleX: target.width * scale / CGFloat(background.width),
+                y: target.height * scale / CGFloat(background.height)))
+            let crop = self.cardFrame.applying(CGAffineTransform(scaleX: scale, y: scale)).integral
+            let blurred = input.clampedToExtent().applyingGaussianBlur(sigma: self.backdropSigma * scale)
+            guard let patch = Self.snapshotContext.createCGImage(blurred, from: crop) else { return }
+            ctx.addPath(StellaInsetLayer.continuousPath(in: self.cardFrame, radius: self.card.cornerRadius))
+            ctx.clip()
+            ctx.draw(patch, in: crop.applying(CGAffineTransform(scaleX: 1 / scale, y: 1 / scale)))
+        }
     }
 }
 
@@ -639,7 +634,8 @@ extension NSView {
     /// This layer-backed view (if shown) over `background` at `scale` pixels per point: window
     /// dumps of the cards over the guest frame. A hidden view returns a `background` of that size
     /// as is (no copy on the main thread).
-    func renderLayerImage(scale: CGFloat, under background: CGImage?) -> CGImage? {
+    func renderLayerImage(scale: CGFloat, under background: CGImage?,
+                          drawBackdrop: ((CGContext) -> Void)? = nil) -> CGImage? {
         let w = Int(bounds.width * scale), h = Int(bounds.height * scale)
         let visible = !isHidden && alphaValue > 0
         if !visible, let background, background.width == w, background.height == h { return background }
@@ -651,6 +647,11 @@ extension NSView {
             ctx.saveGState()
             ctx.setAlpha(alphaValue)
             ctx.scaleBy(x: scale, y: scale)
+            if let drawBackdrop {
+                ctx.saveGState()
+                drawBackdrop(ctx)
+                ctx.restoreGState()
+            }
             layer.render(in: ctx)
             ctx.restoreGState()
         }

@@ -466,6 +466,8 @@
 #              libmalloc-cleared view; DOOM 2016). Diagnostic only, recording is unchanged.
 #              Repro: REPRO_CASE=sentry-bj; a destroyed framebuffer view faults at the reported
 #              frames and offsets on 1.9.14 and is named first after; a live view logs nothing.
+#   0101       Stella: compile DOOMEternal's vertex positions invariantly across its depth and shading
+#              passes. Translate binary64 arithmetic into Mesa's integer soft-float helpers before MSL.
 #
 # Two meson builds: (1) the host compiler tools mesa_clc + vtn_bindgen2 against Homebrew LLVM
 # (shared) and SPIRV-LLVM-Translator, installed into work/build/host-kosmickrisp/clc; (2) the driver
@@ -700,6 +702,7 @@ mv -f "$lib.tmp.$$" "$lib"
 	echo "  0098 = steamac: rejected image views log real format features, external memory and block compatibility (STEAMAC-G)"
 	echo "  0099 = steamac: render pipelines whose vertex function does not resolve fail, logged, instead of aborting (STEAMAC-BN/BP)"
 	echo "  0100 = steamac: render pass begin names attachments whose image view was destroyed (STEAMAC-BJ/BK)"
+	echo "  0101 = Stella: consistent Doom vertex depth and binary64 shader translation"
 	echo
 	echo "Known gaps (host/moltenvk/repro/run.sh): transform feedback with strip geometry shaders and"
 	echo "the overflow counter (draft !44928)."

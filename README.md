@@ -143,21 +143,23 @@ in Steam or Plasma stops following the Mac for that setting, without changing th
 With the launcher setting off, no zone or format is touched. A test can explicitly supply
 `--cmdline "console=hvc0 rootwait steamac.clock24=0"` (or `1`) without changing macOS settings.
 
-Boot and shutdown progress does not disappear before `ready`: the first click or keypress in the
-window collapses the full-screen overlay into a progress pill at the bottom center (stage,
-percentage, bar, detail line such as `378 / 564 MB · 1.9 MB/s`; input reaches the guest). Clicking
-the pill or View → Show Boot Progress expands it again; with the overlay disabled (Settings >
-General), the pill appears immediately. While a new disk is being prepared or the Steam client is
-being downloaded / installed, clicks and keypresses do not collapse the overlay, and an overlay
-previously collapsed by clicking expands automatically (`overlay: expanded for
-steam-download`); one collapsed via View → Show Boot Progress remains a pill until `ready`. Before
-`ready`, the window title repeats the stage: “FX Steam Launcher — Downloading Steam update 70%”,
-“— Starting Steam…”, “— Shutting down…”. The log records `overlay: collapsed to pill (click)` /
-`expanded from pill`. After `ready`, if the window has had no picture for ≥ 3 s (scanout is off, or
+Stella shows startup progress in the main window until Steam reports `ready`. The white bar
+tracks boot milestones and the status line shows details such as `378 / 564 MB · 1.9 MB/s`.
+The window title also shows the current stage. Clicks and keypresses leave the startup screen
+visible. View → Show Boot Progress toggles it for the current session. Settings → General
+controls whether it appears on launch. Enable **Verbose boot and shutdown** in that section
+to see the live SteamOS console and Steam startup messages. The log preserves console text
+colors and highlights plain success, warning, and failure markers in green, amber, and red.
+Shutdown starts a fresh log.
+During shutdown, clicking or pressing a key collapses
+progress into a compact loader at the bottom of the window. It shows the shutdown stage
+and percentage. Clicking the card expands it again.
+
+After `ready`, if the window has had no picture for ≥ 3 s (scanout is off, or
 no frame has arrived after scanout was set or resized), or the displayed frame has been black for
 ≥ 5 s (sparse sampling of 64 × 40 points, brightness < 8/255 for ≥ 99.5%, no more than 4 times a
 second, ~3 µs), and the focus is not in a game and the guest is not asleep / paused / suspended,
-the pill says “Waiting for SteamOS to draw…” with the reason, agent heartbeat, and VM CPU usage;
+the loader says “Waiting for SteamOS to draw…” with the reason, agent heartbeat, and VM CPU usage;
 it disappears on the first non-black frame (`no-picture: shown after 5.0 s (black picture …)` /
 `hidden after … (first non-black frame)`). Test:
 `work/out/steamac-vm --selftest-pill --selftest-out DIR`.
@@ -360,27 +362,34 @@ For tests: `STEAMAC_DEFAULTS_DOMAIN=<domain>` substitutes the settings domain; `
 
 ### Per-game profiles
 
-**Settings → Games** stores a profile per Steam app id, separately from mouse auto-capture:
-**Graphics** — Default (= Vulkan) / Vulkan / DXMT; **Vulkan driver** — Default (the global driver) /
-KosmicKrisp / MoltenVK (only available drivers are offered); **Launch options** — space-separated
-`NAME=value` words placed before `%command%`, not arbitrary shell commands. The whole string is
-limited to 256 characters. Names use the prefixes `VKD3D_`, `DXVK_`, `PROTON_`, `WINE_`, `MESA_`,
-`RADV_`, `VK_`, `DXMT_`, `MTL_`, `STEAMAC_`, followed by zero or more `[A-Z0-9_]` characters;
-values match `[A-Za-z0-9_.,:;+-]*` (empty is allowed). Assignments are sorted by name; the last
-duplicate name wins. Invalid input stays visible with an error and is not saved or sent. An empty field
-means the profile adds no overrides (the field no longer shows a `VKD3D_CONFIG=dxr` example that looked
-like a forced value, STEAMAC-8X). The Metal Performance HUD shows the Mac's drawable size, which can
-differ from the game's rendering resolution.
+Open **Settings → Games → Compatibility…** beside a title. The editor starts with that game's
+saved profile. Choose a preset, fine-tune it, then click **Apply**. **Cancel** discards the draft.
+**My presets…** saves a named copy on this Mac for use with other games. Deleting a preset keeps
+the settings already applied to each game.
 
-For a game that freezes while opening the microphone, enter `STEAMAC_DISABLE_MIC=1` in
-its **Launch options** and restart Steam when prompted. The game's PulseAudio clients can
-still play sound. Remove the option and restart Steam to use voice input again.
+- **Graphics** selects the Vulkan or DXMT path, the host Vulkan driver, and the adapter identity
+  presented to the game. The DirectX 12 controls set the reported shader model and feature level
+  and can expose the driver's 64-bit atomics. The Lay of the Land preset uses shader model 6.6
+  with those atomics, the combination verified in a playable world on an M4 Max with KosmicKrisp.
+- **Runtime** includes a vkd3d frame limit for DirectX 12, the DXVK performance overlay,
+  per-game microphone blocking, and Proton launch logging. The Vulkan and DXMT DirectX 11 presets,
+  DirectX 12 SM 6.6 preset and Proton diagnostics preset are available for every game. Titanfall 2
+  and DOOM Eternal also have named renderer presets.
+- **Launch options** shows the same assignments as the controls. Additional supported assignments
+  survive individual control edits. Choosing a preset replaces the whole draft. **Stella defaults**
+  clears the game profile and restores the usual launcher and guest defaults.
 
-**Recommended: … — Apply** fetches a profile from the statistics service using this Mac's **My Mac**
+Launch options accept up to 256 characters of space-separated `NAME=value` assignments. Supported
+prefixes are `VKD3D_`, `DXVK_`, `PROTON_`, `WINE_`, `MESA_`, `RADV_`, `VK_`, `DXMT_`, `MTL_`,
+and `STEAMAC_`. Values can contain letters, digits, and `_.,:;+-`. Empty values are supported.
+Invalid input stays in the editor until corrected. On save, assignments are sorted by name and the
+last value for a duplicate wins.
+
+**Community recommendation** offers a profile from the statistics service using this Mac's **My Mac**
 limits (GPU cores, RAM and performance cores no greater than this Mac's). Configurations are ranked
 by `(runs well + 0.5 × playable with issues) / all ratings`, then higher launch success and fewer
 early exits; at least two distinct installs are required (details in “Game statistics”).
-Recommendations are never automatic: only **Apply** changes the profile.
+**Use recommendation** copies it into the editor. **Apply** saves it to the game.
 
 DXMT requires **Settings → Advanced → Allow DXMT (D3D11 on the Mac's Metal)** and a VM boot with
 that permission. While it is off, a DXMT profile is shown as not in effect and offers **Allow DXMT…**
@@ -419,7 +428,7 @@ no CPU (~0%); the Mac can sleep.
 
 **Resume:** click the Dock icon, relaunch the app (Finder, `open`, `open -a`), use the menu bar
 icon, or choose **Resume** from the menu. The window returns (including full-screen mode, if it was
-active), mouse capture is restored; the “Resuming…” progress pill stays until the first new guest
+active), mouse capture is restored; the “Resuming…” loader stays until the first new guest
 frame (if the guest GPU is idle, as with a static Steam interface, 0.5 s; at most 2.5 s).
 
 **Clocks:** the guest's monotonic clock does not see the pause (libkrun shifts the virtual timer,
@@ -450,11 +459,11 @@ replaces `ExecStart` in `systemd-suspend.service` (and `systemd-suspend-then-hib
 `systemd-hybrid-sleep` likewise; hibernation is disabled in `sleep.conf.d`) with
 `fx-progress-agent sleep`: it runs the `system-sleep` hooks (`pre`), writes
 `sleep <action> <token>` to the virtio port `fx.sleep`, and waits for a response. The launcher
-suspends the VM (`krun_pause`, as with Suspend — CPU ~0%, the Mac can sleep), but the window stays
-open: a “SteamOS is sleeping” card overlays the frame. A click, keypress, gamepad button, or Dock
+suspends the VM (`krun_pause`, as with Suspend — CPU ~0%, the Mac can sleep). The window stays
+open and shows the “SteamOS is asleep” screen. A click, keypress, gamepad button, or Dock
 icon wakes it: `krun_resume`, `wake <token> <unix_ns>` is sent to the guest, the command adjusts
 the wall clock (as with clock-sync), runs the `post` hooks, and exits — logind sends
-PrepareForSleep(false), Steam wakes; the “Waking up…” progress pill stays until the first frame.
+PrepareForSleep(false), Steam wakes; the “Waking up…” loader stays until the first frame.
 The click or keypress that woke the guest is not passed to the guest.
 
 Closing the window during sleep follows “When closing the window”: Suspend hides the window

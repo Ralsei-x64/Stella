@@ -2,22 +2,6 @@
   "sourceLanguage" : "en",
   "strings" : {
     "" : {},
-    "\"Still working\" card over the picture after 2 s without GPU work from SteamOS (loading, shader compiles)." : {
-      "localizations" : {
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Карточка «Работа продолжается» поверх изображения после 2 с без активности GPU в SteamOS (загрузка, компиляция шейдеров)."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SteamOS 连续 2 秒没有 GPU 活动时（加载或编译着色器），在画面上显示“仍在工作”提示卡片。"
-          }
-        }
-      }
-    },
     "%@ %lld%%" : {
       "localizations" : {
         "en" : {
@@ -530,6 +514,38 @@
         }
       }
     },
+    "1. Steamac (what this app is based on)\n2. SteamOS" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1. Steamac (основа этого приложения)\n2. SteamOS"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1. Steamac（本应用基于此项目开发）\n2. SteamOS"
+          }
+        }
+      }
+    },
+    "64-bit atomics" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "64-битные атомарные операции"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "64 位原子操作"
+          }
+        }
+      }
+    },
     "A Mac folder SteamOS reads and writes in place (virtio-fs, no copy), mounted at the path below on every boot. Games stored there load at the Mac disk's speed. Security: virtio-fs does not confine SteamOS to this folder; with a share set, root in SteamOS can potentially read anything your Mac user can. Share only with a SteamOS you trust." : {
       "localizations" : {
         "ru" : {
@@ -660,6 +676,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "随机生成的安装 ID（不关联你的身份），用于统计受影响的 Mac 数量。"
+          }
+        }
+      }
+    },
+    "About Stella" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "О Stella"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关于 Stella"
+          }
+        }
+      }
+    },
+    "Acknowledgements" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Благодарности"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "致谢"
           }
         }
       }
@@ -1381,6 +1429,22 @@
         }
       }
     },
+    "Change the adapter name and PCI IDs this game sees. Its graphics features stay the same." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Меняет имя адаптера и идентификаторы PCI для этой игры. Графические возможности сохраняются."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更改此游戏看到的显卡名称和 PCI ID。图形功能保持不变。"
+          }
+        }
+      }
+    },
     "Check for Updates…" : {
       "localizations" : {
         "ru" : {
@@ -1563,18 +1627,18 @@
         }
       }
     },
-    "Click or press a key or controller button to wake it" : {
+    "Click anywhere to wake up the VM." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Нажмите кнопку мыши, клавишу или кнопку контроллера для выхода из режима сна"
+            "value" : "Нажмите в любом месте, чтобы разбудить виртуальную машину."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "点按、按任意键或控制器按键以唤醒"
+            "value" : "点按任意位置以唤醒虚拟机。"
           }
         }
       }
@@ -1656,6 +1720,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "命令"
+          }
+        }
+      }
+    },
+    "Community recommendation" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Рекомендация сообщества"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "社区推荐"
+          }
+        }
+      }
+    },
+    "Compatibility" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Совместимость"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "兼容性"
+          }
+        }
+      }
+    },
+    "Compatibility controls" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Параметры совместимости"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "兼容性选项"
+          }
+        }
+      }
+    },
+    "Compatibility…" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Совместимость…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "兼容性…"
           }
         }
       }
@@ -1965,6 +2093,22 @@
         }
       }
     },
+    "Custom (%@)" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Своё значение (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义（%@）"
+          }
+        }
+      }
+    },
     "Custom memory" : {
       "localizations" : {
         "ru" : {
@@ -1977,6 +2121,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自定内存"
+          }
+        }
+      }
+    },
+    "Custom settings" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Свои настройки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义设置"
           }
         }
       }
@@ -2045,6 +2205,22 @@
         }
       }
     },
+    "DOOM Eternal with KosmicKrisp" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DOOM Eternal с KosmicKrisp"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DOOM Eternal 使用 KosmicKrisp"
+          }
+        }
+      }
+    },
     "DPI: %lld" : {
       "localizations" : {
         "ru" : {
@@ -2073,6 +2249,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "关闭“允许 DXMT”时，DXMT 不会生效。"
+          }
+        }
+      }
+    },
+    "DXVK overlay" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оверлей DXVK"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DXVK 叠加层"
           }
         }
       }
@@ -2189,6 +2381,22 @@
         }
       }
     },
+    "Delete preset %@" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить набор «%@»"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除预设“%@”"
+          }
+        }
+      }
+    },
     "Describe what went wrong and send it with the logs you choose to the developers (works with crash reports off, too)." : {
       "localizations" : {
         "ru" : {
@@ -2233,6 +2441,118 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "桌面模式跟随 Mac 的键盘布局（Fn/地球仪键、Control-空格），直到你在 SteamOS 中更改布局。首次同步会替换现有布局；之后用户的更改优先。"
+          }
+        }
+      }
+    },
+    "DirectX 11 with DXMT" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DirectX 11 через DXMT"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DirectX 11 使用 DXMT"
+          }
+        }
+      }
+    },
+    "DirectX 11 with DXVK" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DirectX 11 через DXVK"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DirectX 11 使用 DXVK"
+          }
+        }
+      }
+    },
+    "DirectX 12" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DirectX 12"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DirectX 12"
+          }
+        }
+      }
+    },
+    "DirectX 12 frame limit" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ограничение кадров DirectX 12"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DirectX 12 帧率上限"
+          }
+        }
+      }
+    },
+    "DirectX 12 with SM 6.6" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DirectX 12 с SM 6.6"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DirectX 12 使用 SM 6.6"
+          }
+        }
+      }
+    },
+    "Disable for this game" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отключить для этой игры"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对此游戏禁用"
+          }
+        }
+      }
+    },
+    "Disable the microphone for games that stall when opening voice input. Proton writes its launch log to the SteamOS home folder." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отключите микрофон, если игра зависает при включении голосового ввода. Proton записывает журнал запуска в домашнюю папку SteamOS."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果游戏在打开语音输入时卡住，可禁用麦克风。Proton 会将启动日志写入 SteamOS 主目录。"
           }
         }
       }
@@ -2330,6 +2650,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "完成"
+          }
+        }
+      }
+    },
+    "Don’t Panic!" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Без паники!"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "别担心！"
           }
         }
       }
@@ -2704,6 +3040,22 @@
         }
       }
     },
+    "Expose driver support" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разрешить поддержку драйвером"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用驱动支持"
+          }
+        }
+      }
+    },
     "Extracting Steam update" : {
       "localizations" : {
         "ru" : {
@@ -2716,6 +3068,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在解压 Steam 更新"
+          }
+        }
+      }
+    },
+    "Falsify GPU Vendor" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подмена производителя видеокарты"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模拟显卡厂商"
+          }
+        }
+      }
+    },
+    "Feature level" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уровень возможностей"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "功能级别"
+          }
+        }
+      }
+    },
+    "Frame rate" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Частота кадров"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "帧率"
+          }
+        }
+      }
+    },
+    "Frame rate and frame times" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Частота и время кадра"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "帧率和帧时间"
           }
         }
       }
@@ -2736,6 +3152,38 @@
         }
       }
     },
+    "Lay of the Land with SM 6.6" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lay of the Land с SM 6.6"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lay of the Land 使用 SM 6.6"
+          }
+        }
+      }
+    },
+    "Links" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ссылки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "链接"
+          }
+        }
+      }
+    },
     "Medium" : {
       "localizations" : {
         "ru" : {
@@ -2752,6 +3200,54 @@
         }
       }
     },
+    "Microphone" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Микрофон"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风"
+          }
+        }
+      }
+    },
+    "My presets" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мои наборы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的预设"
+          }
+        }
+      }
+    },
+    "My presets…" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мои наборы…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的预设…"
+          }
+        }
+      }
+    },
     "Pointer size in Steam Gaming Mode." : {
       "localizations" : {
         "ru" : {
@@ -2764,6 +3260,374 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Steam 游戏模式中的指针大小。"
+          }
+        }
+      }
+    },
+    "Preset" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Набор настроек"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预设"
+          }
+        }
+      }
+    },
+    "Preset name" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Название набора"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预设名称"
+          }
+        }
+      }
+    },
+    "Proton diagnostics" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Диагностика Proton"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proton 诊断"
+          }
+        }
+      }
+    },
+    "Proton log" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Журнал Proton"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proton 日志"
+          }
+        }
+      }
+    },
+    "Runtime" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Среда выполнения"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "运行时"
+          }
+        }
+      }
+    },
+    "Save current settings as preset" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранить текущие настройки как набор"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将当前设置存为预设"
+          }
+        }
+      }
+    },
+    "Shader model" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Модель шейдеров"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "着色器模型"
+          }
+        }
+      }
+    },
+    "Shader model and feature level change what vkd3d reports. Rendering still depends on the Vulkan driver." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Модель шейдеров и уровень возможностей меняют данные, которые сообщает vkd3d. Отрисовка зависит от драйвера Vulkan."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "着色器模型和功能级别会改变 vkd3d 报告的能力。实际渲染仍取决于 Vulkan 驱动。"
+          }
+        }
+      }
+    },
+    "Shows a status card after 2 seconds without GPU activity, including while a game loads or compiles shaders." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывает карточку состояния после двух секунд без активности GPU, в том числе при загрузке игры или компиляции шейдеров."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPU 连续 2 秒没有活动时显示状态卡片，包括游戏加载或编译着色器时。"
+          }
+        }
+      }
+    },
+    "Restarting SteamOS..." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перезагрузка SteamOS..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重启 SteamOS..."
+          }
+        }
+      }
+    },
+    "Shutting down SteamOS..." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Завершение работы SteamOS..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在关闭 SteamOS..."
+          }
+        }
+      }
+    },
+    "Booting up SteamOS..." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузка SteamOS..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在启动 SteamOS..."
+          }
+        }
+      }
+    },
+    "Show the live SteamOS log during startup and shutdown." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывать журнал SteamOS в реальном времени при запуске и выключении."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在启动和关机时显示实时 SteamOS 日志。"
+          }
+        }
+      }
+    },
+    "Steam may need to restart to apply changes." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Для применения изменений может потребоваться перезапуск Steam."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用更改可能需要重启 Steam。"
+          }
+        }
+      }
+    },
+    "Steamac GitHub Repo" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Репозиторий Steamac на GitHub"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steamac 的 GitHub 仓库"
+          }
+        }
+      }
+    },
+    "Stella GitHub Repo" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Репозиторий Stella на GitHub"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stella 的 GitHub 仓库"
+          }
+        }
+      }
+    },
+    "Stella defaults" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настройки Stella по умолчанию"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stella 默认设置"
+          }
+        }
+      }
+    },
+    "Stella seeks to run your Steam games on your Mac with minimal hassle.\n\nStella works by running a SteamOS ARM microVM that has access to your Mac’s graphics capabilities to provide near-native graphics performance." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stella помогает запускать игры из Steam на вашем Mac без лишних сложностей.\n\nStella запускает микровиртуальную машину со SteamOS для ARM. Она использует графические возможности Mac и обеспечивает производительность, близкую к нативной."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stella 旨在让你在 Mac 上轻松畅玩 Steam 游戏。\n\nStella 通过运行适用于 ARM 的 SteamOS 微型虚拟机，利用 Mac 的图形处理能力，提供接近原生的图形性能。"
+          }
+        }
+      }
+    },
+    "Titanfall 2 with DXMT" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titanfall 2 через DXMT"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titanfall 2 使用 DXMT"
+          }
+        }
+      }
+    },
+    "Use recommendation" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Использовать рекомендацию"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用推荐设置"
+          }
+        }
+      }
+    },
+    "Use up to 256 characters of supported NAME=value assignments." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введите поддерживаемые параметры ИМЯ=значение общей длиной до 256 символов."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请使用支持的 名称=值 赋值，总长度不超过 256 个字符。"
+          }
+        }
+      }
+    },
+    "Verbose boot and shutdown" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подробный вывод при запуске и выключении"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "详细启动和关机信息"
+          }
+        }
+      }
+    },
+    "Shows startup and shutdown progress in the Stella window." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывает ход запуска и завершения работы в окне Stella."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 Stella 窗口中显示启动和关机进度。"
           }
         }
       }
@@ -2802,6 +3666,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stella %@ 已发布 — 当前版本为 %@"
+          }
+        }
+      }
+    },
+    "Starting Session..." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Запуск сеанса…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在启动会话…"
           }
         }
       }
@@ -3128,22 +4008,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "全高清，16:9"
-          }
-        }
-      }
-    },
-    "Full-window FX progress while SteamOS starts, restarts and shuts down. Off, or after a click: a small progress pill." : {
-      "localizations" : {
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Индикатор прогресса FX на всё окно при запуске, перезапуске и завершении работы SteamOS. Если отключён или после нажатия — небольшой компактный индикатор."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SteamOS 启动、重启和关机时，在整个窗口显示 FX 进度界面。关闭此项或点按后，只显示一个小进度指示条。"
           }
         }
       }
@@ -3586,6 +4450,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "我接受 Valve 的 SteamOS 许可和 Steam 订户协议"
+          }
+        }
+      }
+    },
+    "If the screen is frozen, the VM is most likely compiling shaders or loading content." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Если изображение застыло, скорее всего, виртуальная машина компилирует шейдеры или загружает игровые ресурсы."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果画面卡住，虚拟机很可能正在编译着色器或加载游戏内容。"
           }
         }
       }
@@ -7248,18 +8128,18 @@
         }
       }
     },
-    "SteamOS is sleeping" : {
+    "SteamOS is sleeping..." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "SteamOS в режиме сна"
+            "value" : "SteamOS в режиме сна..."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "SteamOS 正在睡眠"
+            "value" : "SteamOS 正在睡眠..."
           }
         }
       }
@@ -7454,22 +8334,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "摇杆死区"
-          }
-        }
-      }
-    },
-    "Still working — loading or compiling shaders…" : {
-      "localizations" : {
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Работа продолжается — загрузка или компиляция шейдеров…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "仍在工作 — 正在加载或编译着色器…"
           }
         }
       }
@@ -8523,6 +9387,38 @@
         }
       }
     },
+    "Verified in gameplay on an M4 Max using KosmicKrisp." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверено в игре на M4 Max с KosmicKrisp."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已在 M4 Max 上使用 KosmicKrisp 实机验证。"
+          }
+        }
+      }
+    },
+    "Version %@" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Версия %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版本 %@"
+          }
+        }
+      }
+    },
     "VM CPU %@ cores" : {
       "localizations" : {
         "ru" : {
@@ -8535,22 +9431,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "虚拟机 CPU 占用 %@ 核"
-          }
-        }
-      }
-    },
-    "VM CPU %@ cores · guest alive" : {
-      "localizations" : {
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ВМ использует %@ ядра CPU · гостевая система отвечает"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "虚拟机 CPU 占用 %@ 核 · 客户机仍在响应"
           }
         }
       }
@@ -8955,6 +9835,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "窗口"
+          }
+        }
+      }
+    },
+    "Write log" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Записывать журнал"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写入日志"
           }
         }
       }

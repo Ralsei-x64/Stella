@@ -3,18 +3,9 @@ import Carbon.HIToolbox
 import CKrun
 import Foundation
 
-/// `--selftest-pill`: a real window + Metal view + FX overlay + progress pill + GPU-idle card +
-/// no-picture guard, wired like a VM boot (WindowController.attach(progress:/stall:/noPicture:)),
-/// with real (inactive) virtio input devices so clicks and keys take the real input path. Guest
-/// lines go through the real fx.progress pipe; frames, scanout resizes and scanout disables go
-/// through the real display vtable. Steps: a click during the update check collapses the overlay
-/// into the pill (window title), the download re-expands it, clicks / keys during the download
-/// keep it up (live MB/s), a menu collapse during the download is respected, clicking the pill /
-/// the menu expand and collapse it, a click while Steam starts collapses it, `ready` fades it;
-/// then the no-picture guard (display off 2 s / 3.5 s, black
-/// frames 4 s / 5.5 s, non-black frame, game focus, sleep, a resize without a frame) and the
-/// shutdown overlay collapsing into the pill. Each step writes the composite at 2x and the
-/// window as the window server shows it (title bar included) and checks state + pixels.
+/// Exercises embedded startup progress, sleep and wake, the missing-picture diagnostic, and
+/// compact shutdown progress in a native VM window. Guest events use the progress port and
+/// display vtable. Each step checks state and captures the layer tree and WindowServer output.
 enum PillSelfTest {
     enum Frames { case none, black, pattern }
 
@@ -27,7 +18,7 @@ enum PillSelfTest {
 
     static func run(_ o: Options) -> Never {
         let app = SteamacApplication.shared
-        app.setActivationPolicy(.regular)
+        app.setActivationPolicy(.accessory)
         let display = DisplayBackend()
         let renderer = Renderer()
         let presenter = Presenter(display: display, renderer: renderer)
@@ -58,8 +49,10 @@ enum PillSelfTest {
             _ = (s + "\n").withCString { Darwin.write(port.guestOutputFd, $0, strlen($0)) }
         }
 
-        wc.show()
-        if LauncherSettings.shared.showOverlay { wc.overlay.show(animated: false) }
+        // Synthetic events go directly to the VM view. Keep desktop input with the user.
+        wc.window.ignoresMouseEvents = true
+        wc.window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)) - 1)
+        wc.window.orderBack(nil)
         log("pill selftest: window \(wc.window.windowNumber) backingScale=\(wc.window.backingScaleFactor)")
 
         // Black-test cost on a full-size frame (Scanout.darkFraction): 200 runs.
@@ -80,7 +73,7 @@ enum PillSelfTest {
                 if let e = NSEvent.mouseEvent(with: type, location: p, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                                               windowNumber: wc.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1,
                                               pressure: type == .leftMouseDown ? 1 : 0) {
-                    NSApp.sendEvent(e)
+                    wc.pointerButton(e, down: type == .leftMouseDown)
                 }
             }
         }
@@ -94,7 +87,6 @@ enum PillSelfTest {
             }
         }
         let pill = wc.pill
-        func pillCenter() -> NSPoint { wc.view.convert(NSPoint(x: pill.cardFrame.midX, y: pill.cardFrame.midY), to: nil) }
         func status(_ s: String?) -> String { s.map { String(localized: "\(title) — \($0)") } ?? title }
         func expectTitle(_ s: String?) -> String? {
             wc.window.title == status(s) ? nil : "window title \"\(wc.window.title)\", expected \"\(status(s))\""
@@ -120,10 +112,20 @@ enum PillSelfTest {
             return nil
         }
         func expectOverlay() -> String? {
-            wc.overlay.shown && !pill.shown ? nil : "expected the full overlay (overlay \(wc.overlay.shown), pill \(pill.shown))"
+            wc.overlay.shown && wc.overlay.window === wc.window && !pill.shown
+                ? nil : "expected boot progress embedded in the VM window"
+        }
+        func expectBootHidden() -> String? {
+            !wc.overlay.shown && !pill.shown ? nil : "hiding boot progress should hide both presentations"
         }
         func expectNoPill(_ what: String) -> String? {
             !pill.shown ? nil : "\(what): pill should be hidden, shows \"\(pill.content.title)\" / \"\(pill.content.detail)\""
+        }
+        var wakeRequests = 0
+        wc.onWakeRequest = { _ in
+            wakeRequests += 1
+            wc.guestSleeping(false)
+            noPicture.vmPaused = false
         }
         let waiting = NoPictureGuard.title
 
@@ -137,12 +139,12 @@ enum PillSelfTest {
                 guest("stage session 100 Starting Steam session")
                 guest("stage steam-check -1 Checking for Steam updates")
             }, wait: 0.8) {
-                expectOverlay() ?? expectNoPill("overlay up") ?? expectTitle(checking + "…")
+                expectOverlay() ?? expectNoPill("overlay up") ?? expectTitle(String(localized: "\(checking) \(overallPercent())%"))
             },
-            Step(name: "02-click-during-check-collapses", action: { click(windowPoint(unit: 0.5, 0.4)) }, wait: 0.9) {
-                expectPill(checking, detail: "", percent: false) ?? expectTitle(checking + "…")
+            Step(name: "02-click-keeps-startup-screen", action: { click(windowPoint(unit: 0.5, 0.4)) }, wait: 0.9) {
+                expectOverlay() ?? expectTitle(String(localized: "\(checking) \(overallPercent())%"))
             },
-            Step(name: "03-download-re-expands", action: {
+            Step(name: "03-download-in-main-window", action: {
                 guest("stage steam-download 0 Downloading Steam update")
                 guest("log 129 / 564 MB · 7.3 MB/s")
             }, wait: 0.8) {
@@ -161,34 +163,29 @@ enum PillSelfTest {
                 expectOverlay() ?? expectTitle(String(localized: "\(downloading) \(overallPercent())%"))
                     ?? (progress.state.detail == "378 / 564 MB · 1.9 MB/s" ? nil : "detail \(progress.state.detail)")
             },
-            Step(name: "06a-menu-collapses-during-download", action: { wc.toggleOverlay() }, wait: 0.7) {
-                expectPill(downloading, detail: "378 / 564 MB · 1.9 MB/s", percent: true)
+            Step(name: "06-menu-hides-progress", action: { wc.toggleOverlay() }, wait: 0.7) {
+                expectBootHidden()
             },
-            Step(name: "06b-menu-collapse-respected", action: {
+            Step(name: "07-stage-update-while-hidden", action: {
                 guest("stage steam-download 89 Downloading Steam update")
                 guest("log 501 / 564 MB · 3.8 MB/s")
             }, wait: 0.7) {
-                expectPill(downloading, detail: "501 / 564 MB · 3.8 MB/s", percent: true)
-                    ?? expectTitle(String(localized: "\(downloading) \(overallPercent())%"))
+                expectBootHidden() ?? expectTitle(String(localized: "\(downloading) \(overallPercent())%"))
             },
-            Step(name: "07-pill-click-expands", action: { click(pillCenter()) }, wait: 0.7) {
+            Step(name: "08-menu-restores-progress", action: { wc.toggleOverlay() }, wait: 0.7) {
                 expectOverlay()
-            },
-            Step(name: "08-menu-collapses", action: { wc.toggleOverlay() }, wait: 0.7) {
-                expectPill(downloading, detail: "501 / 564 MB", percent: true)
             },
             Step(name: "09a-starting-steam", action: {
                 guest("stage steam-install 100 Installing Steam update")
                 guest("stage steam-start -1 Starting Steam")
             }, wait: 0.7) {
-                expectPill(starting, detail: "", percent: false) ?? expectTitle(starting + "…")
-                    ?? (pill.content.indeterminate ? nil : "pill should be indeterminate")
+                expectOverlay() ?? expectTitle(String(localized: "\(starting) \(overallPercent())%"))
             },
-            Step(name: "09b-menu-expands-at-start", action: { wc.toggleOverlay() }, wait: 0.7) {
+            Step(name: "09b-key-during-start", action: { key(kVK_ANSI_A) }, wait: 0.7) {
                 expectOverlay()
             },
-            Step(name: "09c-click-during-start-collapses", action: { click(windowPoint(unit: 0.5, 0.4)) }, wait: 0.9) {
-                expectPill(starting, detail: "", percent: false) ?? expectTitle(starting + "…")
+            Step(name: "09c-click-during-start", action: { click(windowPoint(unit: 0.5, 0.4)) }, wait: 0.9) {
+                expectOverlay()
             },
             Step(name: "10-ready-fades", action: { guest("ready") }, wait: 1.0) {
                 progress.state.phase == .running && pill.isIdle && !wc.overlay.shown
@@ -222,17 +219,37 @@ enum PillSelfTest {
             Step(name: "18-steam-black-5.5s", action: { guest("focus steam") }, wait: 5.5) {
                 expectPill(waiting, detail: String(localized: "black picture \(sampleSeconds) s"), percent: false)
             },
-            Step(name: "19-sleep-hides", action: { wc.guestSleeping(true); noPicture.vmPaused = true }, wait: 6.0) {
-                expectNoPill("SteamOS asleep, black 6 s")
+            Step(name: "19-sleep-hides", action: { frames = .pattern; wc.guestSleeping(true); noPicture.vmPaused = true }, wait: 6.0) {
+                expectNoPill("SteamOS asleep") ?? (wc.sleepView.shown ? nil : "sleep screen missing")
             },
-            Step(name: "20-awake-black-2s", action: { wc.guestSleeping(false); noPicture.vmPaused = false }, wait: 2.0) {
-                expectNoPill("awake again, black 2 s (clock restarted)")
+            Step(name: "20-awake-black-2s", action: { frames = .black; click(windowPoint(unit: 0.5, 0.5)) }, wait: 2.0) {
+                expectNoPill("awake again") ?? (wakeRequests == 1 && wc.sleepView.isHidden ? nil : "click did not wake the session")
             },
             Step(name: "21-resize-no-frame-3.5s", action: { frames = .none; configure = (W - 256, H - 160) }, wait: 3.5) {
                 expectPill(waiting, detail: String(localized: "no frame \(sampleSeconds) s"), percent: false)
             },
             Step(name: "22-new-size-frame-hides", action: { frames = .pattern }, wait: 0.8) {
                 expectNoPill("frame at the new size")
+            },
+            Step(name: "22a-resume-loader", action: {
+                wc.resumeChip.show(String(localized: "Resuming…"))
+            }, wait: 0.5) {
+                wc.resumeChip.shown && wc.resumeChip.currentDetail == waiting ? nil : "resume loader missing"
+            },
+            Step(name: "22b-resume-complete", action: { wc.resumeChip.hide() }, wait: 0.5) {
+                wc.resumeChip.isIdle ? nil : "resume loader still visible"
+            },
+            Step(name: "22c-game-paused-card", action: { wc.gamePaused(4242) }, wait: 0.5) {
+                wc.pauseView.shown ? nil : "game pause card missing"
+            },
+            Step(name: "22c-pause-interrupted-dismissal", action: {
+                wc.gamePaused(nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { wc.gamePaused(4242) }
+            }, wait: 0.6) {
+                wc.pauseView.shown && !wc.pauseView.isHidden ? nil : "interrupted dismissal hid the reopened card"
+            },
+            Step(name: "22d-game-resumed", action: { wc.gamePaused(nil) }, wait: 0.5) {
+                wc.pauseView.isHidden ? nil : "game pause card still visible"
             },
             Step(name: "23-shutdown-overlay", action: { configure = (W, H); guest("shutdown poweroff") }, wait: 0.8) {
                 expectOverlay() ?? expectTitle(String(localized: "Shutting down…"))
@@ -285,15 +302,54 @@ enum PillSelfTest {
             var failures: [String] = []
             if costUs > 100 { failures.append(String(format: "black test too slow: %.1f µs", costUs)) }
             for step in steps {
-                DispatchQueue.main.sync { step.action() }
+                DispatchQueue.main.sync {
+                    let views: [NSView] = [wc.sleepView, wc.pauseView, wc.resumeChip]
+                    let entering = views.filter(\.isHidden)
+                    let leaving = views.filter { !$0.isHidden }
+                    step.action()
+                    for view in entering where !view.isHidden {
+                        if let error = motionError(view, appearing: true) { failures.append("\(step.name): \(error)") }
+                    }
+                    for view in leaving where !view.isHidden {
+                        let shown = (view as? PauseOverlayView)?.shown ?? (view as? LoaderCardView)?.shown ?? true
+                        if !shown, let error = motionError(view, appearing: false) {
+                            failures.append("\(step.name): \(error)")
+                        }
+                    }
+                }
                 idle(step.wait)
                 let sem = DispatchSemaphore(value: 0)
                 nonisolated(unsafe) var shot: (CGImage?, CGImage?) = (nil, nil)
                 DispatchQueue.main.sync {
                     if let msg = step.check() { failures.append("\(step.name): \(msg)") }
+                    for view in [wc.sleepView, wc.pauseView] where view.shown {
+                        let k = min(view.bounds.width / 1920, view.bounds.height / 1080)
+                        let centerY = view.bounds.midY - (view === wc.sleepView ? 15 * k : 0)
+                        let card = view.surface.card
+                        if abs(view.cardFrame.midX - view.bounds.midX) > 1 || abs(view.cardFrame.midY - centerY) > 1 ||
+                            card.filters?.isEmpty == false {
+                            failures.append("\(step.name): card did not settle in focus at its original position")
+                        }
+                    }
                     if let screen = wc.windowServerImage() {
                         do { try PNG.write(screen, to: "\(outDir)/pill-\(step.name)-screen.png") }
                         catch { failures.append("\(step.name): \(error)") }
+                        if wc.overlay.shown && progress.state.phase == .boot && progress.state.fraction >= 0.3 {
+                            // A hidden stall backdrop once blurred this fill only in WindowServer.
+                            let bar = wc.overlay.barFrame
+                            let scale = CGFloat(screen.width) / wc.overlay.bounds.width
+                            let sample = CGRect(x: floor((bar.minX + 0.2 * bar.width) * scale),
+                                                y: floor(CGFloat(screen.height) - bar.midY * scale), width: 1, height: 1)
+                            if let point = screen.cropping(to: sample), let rgba = OverlaySelfTest.pixels(point) {
+                                if rgba.prefix(3).contains(where: { $0 < 225 }) {
+                                    failures.append("\(step.name): native window blurred the white progress fill")
+                                }
+                            } else {
+                                failures.append("\(step.name): could not sample native progress fill")
+                            }
+                        }
+                    } else if step.name == "05-live-update-in-overlay" {
+                        failures.append("\(step.name): native progress window capture unavailable")
                     }
                     wc.captureWindow { drawable, composite in shot = (drawable, composite); sem.signal() }
                 }
@@ -323,8 +379,32 @@ enum PillSelfTest {
         exit(0)
     }
 
-    /// Pill shown: its padding is dark, the spinner has blue pixels, a determinate bar is blue left
-    /// of the fraction and dark right of it, and (over the test pattern) the guest frame stays
+    private static func motionError(_ view: NSView, appearing: Bool) -> String? {
+        guard let surface = view.subviews.compactMap({ $0 as? StellaCardSurface }).first,
+              let material = surface.layer, surface.card.superlayer === material, material.masksToBounds else {
+            return "blur and artwork must share a clipped surface"
+        }
+        let pop = material.animation(forKey: "statusPop") as? CAKeyframeAnimation
+        let focus = surface.card.animation(forKey: "statusFocus") as? CABasicAnimation
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            return pop == nil && focus == nil ? nil : "Reduce Motion still animates the card"
+        }
+        guard let frames = pop?.values as? [NSValue], let small = (appearing ? frames.first : frames.last)?.caTransform3DValue,
+              small.m11 < 1, let radius = (appearing ? focus?.fromValue : focus?.toValue) as? NSNumber,
+              radius.doubleValue > 0 else {
+            return "missing scale or blur on \(appearing ? "entry" : "dismissal")"
+        }
+        for value in frames {
+            let m = value.caTransform3DValue
+            let x = material.frame.midX - material.position.x, y = material.frame.minY - material.position.y
+            if abs(x * m.m11 + m.m41 - x) > 0.01 || abs(y * m.m22 + m.m42 - y) > 0.01 {
+                return "card moved away from its bottom-center anchor"
+            }
+        }
+        return nil
+    }
+
+    /// Loader cards have dark padding and a silver spinner. The guest frame stays
     /// visible above the pill (top-left red quadrant). Hidden: nothing drawn at the pill's place
     /// beyond the guest frame (pattern: blue bottom-left quadrant left of centre).
     static func pixelChecks(_ name: String, _ img: CGImage, _ wc: WindowController, patternBehind: Bool) -> [String] {
@@ -339,25 +419,41 @@ enum PillSelfTest {
         var f: [String] = []
         let card = view.cardFrame
         let pad = at(CGPoint(x: card.minX + 6, y: card.midY))
-        if view.shown {
-            if pad.0 > 75 || pad.1 > 80 || pad.2 > 90 { f.append("\(name): pill padding should be dark, got \(pad)") }
-            var blue = 0
-            for yi in 0..<Int(card.height) {
-                let p = at(CGPoint(x: card.minX + 16 + 11, y: card.minY + CGFloat(yi)))
-                if p.2 > 180 && p.0 < 160 { blue += 1 }
+        // The test pattern's right half has a full green channel above and below either card.
+        // Its lower edge should cast a stronger shadow at equal distance from the silhouette.
+        if patternBehind && (wc.resumeChip.shown || wc.pauseView.shown) {
+            let box = wc.resumeChip.shown ? wc.resumeChip.cardFrame : wc.pauseView.cardFrame
+            let x = box.midX + box.width * 0.25
+            let above = at(CGPoint(x: x, y: box.maxY + 4)).1
+            let below = at(CGPoint(x: x, y: box.minY - 4)).1
+            let distant = at(CGPoint(x: x, y: box.maxY + box.height)).1
+            if above >= distant - 10 || below >= above - 5 {
+                f.append("\(name): expected a downward exterior shadow (below \(below), above \(above), distant \(distant))")
             }
-            for xi in 0..<30 {
-                let p = at(CGPoint(x: card.minX + 16 + CGFloat(xi), y: card.midY))
-                if p.2 > 180 && p.0 < 160 { blue += 1 }
+        }
+        if wc.sleepView.shown {
+            let bounds = wc.sleepView.bounds
+            let k = min(bounds.width / 1920, bounds.height / 1080)
+            let outside = at(CGPoint(x: bounds.width * 0.08, y: bounds.height * 0.85))
+            if max(outside.0, outside.1, outside.2) > 30 { f.append("\(name): guest frame visible through sleep screen") }
+            let box = wc.sleepView.cardFrame
+            for (rows, threshold) in [(26..<55, 120), (63..<84, 65)] {
+                let hasText = rows.contains { row in
+                    (36..<310).contains { col in
+                        at(CGPoint(x: box.minX + CGFloat(col) * k, y: box.maxY - CGFloat(row) * k)).0 > threshold
+                    }
+                }
+                if !hasText { f.append("\(name): missing text in the sleep status box") }
             }
-            if blue < 2 { f.append("\(name): spinner not drawn") }
-            let bar = view.barFrame
-            if let fr = view.content.fraction, !view.content.indeterminate, !bar.isEmpty, fr > 0.1, fr < 0.9 {
-                let filled = at(CGPoint(x: bar.minX + bar.width * CGFloat(fr) * 0.5, y: bar.midY))
-                let empty = at(CGPoint(x: bar.minX + bar.width * (CGFloat(fr) + 1) / 2, y: bar.midY))
-                if filled.2 < 150 { f.append("\(name): pill bar not blue left of \(Int(fr * 100))%: \(filled)") }
-                if empty.2 > 120 { f.append("\(name): pill bar should be empty right of \(Int(fr * 100))%: \(empty)") }
+        } else if view.shown || wc.resumeChip.shown {
+            if view.shown && (pad.0 > 75 || pad.1 > 80 || pad.2 > 90) { f.append("\(name): card padding should be dark") }
+            let loader: LoaderCardView = view.shown ? view : wc.resumeChip
+            let spinner = loader.spinnerFrame
+            let visibleBlade = (0..<Int(spinner.height)).contains { y in
+                let p = at(CGPoint(x: spinner.midX, y: spinner.minY + CGFloat(y)))
+                return min(p.0, p.1, p.2) > 75 && max(p.0, p.1, p.2) - min(p.0, p.1, p.2) < 25
             }
+            if !visibleBlade { f.append("\(name): silver spinner missing") }
             if patternBehind && !wc.overlay.shown {
                 let b = view.bounds
                 let probe = at(CGPoint(x: b.width * 0.08, y: b.height * 0.85))

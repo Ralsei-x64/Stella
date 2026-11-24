@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import Vision
+import Carbon.HIToolbox
 
 /// `--selftest-settings [--selftest-out DIR]`: open the Settings window without a VM, write
 /// DIR/settings-<tab>.png for every tab (command-line overrides of this run are shown as in a
@@ -448,65 +450,97 @@ enum SettingsSelfTest {
             }
         }
 
-        /// Exercise the real SwiftUI field, including clearing and reopening it: an example
-        /// assignment in the empty-field prompt looked like a forced title default (STEAMAC-8X).
+        /// Drive the same sheet used by a player. Draft edits reach disk only when applied.
         func profileLaunchOptions(then done: @escaping () -> Void) {
-            func fields(_ view: NSView) -> [NSTextField] {
-                (view as? NSTextField).map { [$0] } ?? view.subviews.flatMap(fields)
+            func views(_ root: NSView?) -> [NSView] {
+                guard let root else { return [] }
+                return [root] + root.subviews.flatMap { views($0) }
             }
-            // Find the fixture by its unique initial value, not by the user's game-name order.
-            let initialFields = sw.window.contentView.map { fields($0).filter(\.isEditable) } ?? []
-            guard let fieldIndex = initialFields.firstIndex(where: { $0.stringValue == profileTestEnv }) else {
-                failures.append("profiles: launch options fixture field missing")
-                return done()
-            }
-            func launchField() -> NSTextField? {
-                let current = sw.window.contentView.map { fields($0).filter(\.isEditable) } ?? []
-                return current.indices.contains(fieldIndex) ? current[fieldIndex] : nil
-            }
-            var values = ["", "VKD3D_CONFIG=dxr", "", "PROTON_LOG=1", ""]
-            func step() {
-                guard let field = launchField() else {
-                    failures.append("profiles: launch options field missing")
-                    return done()
+            // SwiftUI can draw these buttons without NSButton subviews. Hit the rendered label
+            // in our own window so this self-test also runs without macOS Accessibility access.
+            func click(_ title: String, in window: NSWindow) -> Bool {
+                guard let image = SettingsWindowController.snapshot(window)?.cgImage,
+                      let frame = window.contentView?.superview else { return false }
+                let text = VNRecognizeTextRequest()
+                text.automaticallyDetectsLanguage = true
+                do { try VNImageRequestHandler(cgImage: image).perform([text]) } catch { return false }
+                func canonical(_ label: String) -> String { label.replacingOccurrences(of: "…", with: "...") }
+                let matches = (text.results ?? []).filter {
+                    $0.topCandidates(1).first.map { canonical($0.string) == canonical(title) } == true
                 }
-                if field.placeholderString?.contains("VKD3D_CONFIG=dxr") == true {
-                    failures.append("profiles: empty launch options look like a forced DXR assignment")
+                guard let box = matches.max(by: { $0.boundingBox.midY < $1.boundingBox.midY })?.boundingBox else {
+                    log("selftest-settings: button missing in snapshot: " + title)
+                    return false
                 }
-                guard !values.isEmpty else {
-                    sw.show(tab: .general)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        sw.show(tab: .games)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            let reopened = launchField()
-                            if reopened?.stringValue != "" || settings.profile(for: profileID).env != "" {
-                                failures.append("profiles: cleared launch options changed after reopening Games")
+                let y = frame.isFlipped ? 1 - box.midY : box.midY
+                let location = frame.convert(NSPoint(x: box.midX * frame.bounds.width, y: y * frame.bounds.height), to: nil)
+                // AppKit buttons can run a tracking loop inside mouseDown. Queue the mouseUp first.
+                func event(_ type: NSEvent.EventType) -> NSEvent? {
+                    NSEvent.mouseEvent(with: type, location: location, modifierFlags: [],
+                                       timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                       context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0)
+                }
+                guard let down = event(.leftMouseDown), let up = event(.leftMouseUp) else { return false }
+                NSApp.postEvent(up, atStart: true)
+                window.sendEvent(down)
+                return true
+            }
+            Task { @MainActor in
+                defer { done() }
+                let presetName = "Self-test " + UUID().uuidString
+                let initial = settings.profile(for: profileID)
+                settings.savePreset(initial, named: presetName)
+                if LauncherSettings().savedPresets[presetName] != initial {
+                    failures.append("profiles: personal preset did not persist")
+                }
+                settings.removePreset(named: presetName)
+                if LauncherSettings().savedPresets[presetName] != nil || settings.profile(for: profileID) != initial {
+                    failures.append("profiles: deleting preset changed a game or retained the preset")
+                }
+                var expected = profileTestEnv
+                let shaderPreset = CompatibilityPreset.builtIns(for: profileID).first { $0.id == "sm66" }!
+                for (value, apply) in [(shaderPreset.profile.env, true), ("PROTON_LOG=1", false), ("", true), ("VKD3D_CONFIG=dxr", true), ("", true)] {
+                    guard click(String(localized: "Compatibility…"), in: sw.window) else { failures.append("profiles: editor button missing"); return }
+                    try? await Task.sleep(for: .milliseconds(450))
+                    guard let sheet = sw.window.attachedSheet else { failures.append("profiles: sheet missing"); return }
+                    let content = views(sheet.contentView)
+                    guard let field = content.compactMap({ $0 as? NSTextField }).first(where: { $0.isEditable }),
+                          field.stringValue == expected else { failures.append("profiles: reopened launch options differ"); return }
+                    if value == shaderPreset.profile.env {
+                        guard let popup = popups(in: sheet.contentView).first(where: { $0.title == String(localized: "Custom settings") })
+                        else { failures.append("profiles: preset picker missing"); return }
+                        let center = NotificationCenter.default
+                        let observer = center.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: nil) { note in
+                            guard let menu = note.object as? NSMenu, menu === popup.menu else { return }
+                            let index = menu.indexOfItem(withTitle: shaderPreset.name)
+                            DispatchQueue.main.async {
+                                menu.cancelTracking()
+                                if index >= 0 { menu.performActionForItem(at: index) }
                             }
-                            done()
                         }
+                        let timer = Timer(timeInterval: 1, repeats: false) { _ in popup.menu?.cancelTracking() }
+                        RunLoop.main.add(timer, forMode: .common)
+                        popup.performClick(nil)
+                        timer.invalidate()
+                        center.removeObserver(observer)
+                        try? await Task.sleep(for: .milliseconds(250))
+                        guard field.stringValue == value else { failures.append("profiles: preset did not populate the editor"); return }
+                        capture("compatibility", SettingsWindowController.snapshot(sheet))
+                    } else {
+                        field.selectText(nil)
+                        guard let editor = field.currentEditor() as? NSTextView else { failures.append("profiles: editor missing"); return }
+                        editor.selectAll(nil)
+                        editor.insertText(value, replacementRange: editor.selectedRange())
                     }
-                    return
-                }
-                let value = values.removeFirst()
-                field.selectText(nil)
-                guard let editor = field.currentEditor() as? NSTextView else {
-                    failures.append("profiles: launch options field editor missing")
-                    return done()
-                }
-                editor.selectAll(nil)
-                editor.insertText(value, replacementRange: editor.selectedRange())
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    // The normal domain is Bundle.main's identifier and uses .standard;
-                    // reopening it as a suite is rejected by UserDefaults.
-                    let data = settings.defaults.data(forKey: "profile.\(profileID)")
-                    let stored = data.flatMap { try? JSONDecoder().decode(GameProfile.self, from: $0) }
-                    if settings.profile(for: profileID).env != value || stored?.env != value {
-                        failures.append("profiles: launch options edit did not persist: \(value) (model=\(settings.profile(for: profileID).env), stored=\(stored?.env ?? "<missing>"))")
-                    }
-                    step()
+                    try? await Task.sleep(for: .milliseconds(150))
+                    guard settings.profile(for: profileID).env == expected else { failures.append("profiles: draft applied early"); return }
+                    let title = apply ? String(localized: "Apply") : String(localized: "Cancel")
+                    guard click(title, in: sheet) else { failures.append("profiles: missing sheet action " + title); return }
+                    try? await Task.sleep(for: .milliseconds(350))
+                    if apply { expected = value }
+                    if LauncherSettings().profile(for: profileID).env != expected { failures.append("profiles: sheet persistence") }
                 }
             }
-            step()
         }
 
         func next() {
@@ -544,14 +578,50 @@ enum SettingsSelfTest {
             // Let the tab switch animation and SwiftUI layout settle.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                 capture(tab.name, sw.snapshot())
-                if tab == .games && popups(in: sw.window.contentView).count < 3 {
-                    failures.append("profiles: graphics/driver/rating pickers not rendered")
-                }
                 if tab == .games { profileLaunchOptions(then: next) }
                 else { next() }
             }
         }
-        DispatchQueue.main.async { app.activate(); next() }
+        DispatchQueue.main.async {
+            app.activate()
+            guard let menu = app.mainMenu?.items.first?.submenu,
+                  let item = menu.items.first(where: { $0.action == #selector(AboutWindowController.show(_:)) }) else {
+                failures.append("About Stella menu item missing")
+                return next()
+            }
+            sw.show()
+            menu.performActionForItem(at: menu.index(of: item))
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                if let about = app.windows.first(where: { $0.isVisible && $0.title == item.title }) {
+                    capture("about", SettingsWindowController.snapshot(about))
+                    if about.styleMask.contains(.titled) || about.isOpaque || about.backgroundColor.alphaComponent != 0 {
+                        failures.append("About Stella has an outer window surface")
+                    }
+                    if let escape = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                                                     timestamp: ProcessInfo.processInfo.systemUptime,
+                                                     windowNumber: about.windowNumber, context: nil, characters: "\u{1b}",
+                                                     charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: UInt16(kVK_Escape)) {
+                        app.sendEvent(escape)
+                    }
+                    if about.isVisible { failures.append("Escape did not close About Stella") }
+                    menu.performActionForItem(at: menu.index(of: item))
+                    if let popup = app.windows.first(where: { $0.isVisible && $0.title == item.title }) {
+                        let center = CGPoint(x: popup.frame.width / 2, y: popup.frame.height / 2)
+                        for (location, inside) in [(center, true), (CGPoint(x: 2, y: 2), false)] {
+                            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                                if let click = NSEvent.mouseEvent(with: type, location: location, modifierFlags: [],
+                                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: popup.windowNumber,
+                                    context: nil, eventNumber: 0, clickCount: 1, pressure: 0) { app.sendEvent(click) }
+                            }
+                            if popup.isVisible != inside { failures.append("About click hit the wrong region") }
+                        }
+                    } else { failures.append("About Stella did not reopen") }
+                } else {
+                    failures.append("About Stella did not open from the application menu")
+                }
+                next()
+            }
+        }
         app.run()
         exit(0)
     }

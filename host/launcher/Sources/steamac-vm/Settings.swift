@@ -20,7 +20,7 @@ final class LauncherSettings: ObservableObject {
     /// Preference keys. `nextStart` keys are read once per boot (see Options.applySettings).
     enum Key: String, CaseIterable {
         // General
-        case showOverlay, showStallIndicator, openFullscreen, perfStats, sendCrashReports, muteInBackground, pauseInBackground,
+        case showOverlay, verboseOverlay, showStallIndicator, openFullscreen, perfStats, sendCrashReports, muteInBackground, pauseInBackground,
              closeAction, checkForUpdates, followMacTime, followMacKeyboard, shareClipboard, shareConcealedClipboard, shareGameStats
         // Display
         case dpiSource, fixedDPI, fixedWidthMM, fixedHeightMM, refreshRate, followWindowSize, windowWidth, windowHeight,
@@ -314,11 +314,14 @@ final class LauncherSettings: ObservableObject {
     private var bootSnapshot: [Key: String] = [:]
     private var loading = false
     @Published private(set) var profiles: [Int: GameProfile] = [:]
+    private static let presetPrefix = "compatibilityPreset."
+    @Published private(set) var savedPresets: [String: GameProfile] = [:]
     /// The effective boot driver, including a one-shot profile restart override.
     var bootedDriver: VulkanDriver?
     var bootedDXMT: Bool?
 
     // General
+    @Published var verboseOverlay = false { didSet { save(.verboseOverlay, verboseOverlay) } }
     @Published var showOverlay = true { didSet { save(.showOverlay, showOverlay) } }
     @Published var showStallIndicator = true { didSet { save(.showStallIndicator, showStallIndicator) } }
     @Published var openFullscreen = false { didSet { save(.openFullscreen, openFullscreen) } }
@@ -448,6 +451,7 @@ final class LauncherSettings: ObservableObject {
         func bool(_ k: Key, _ v: inout Bool) { if let b = d.object(forKey: k.rawValue) as? Bool { v = b } }
         func int(_ k: Key, _ v: inout Int) { if let n = d.object(forKey: k.rawValue) as? Int { v = n } }
         func string(_ k: Key, _ v: inout String) { if let s = d.string(forKey: k.rawValue) { v = s } }
+        bool(.verboseOverlay, &verboseOverlay)
         bool(.showOverlay, &showOverlay)
         bool(.showStallIndicator, &showStallIndicator)
         bool(.openFullscreen, &openFullscreen)
@@ -515,6 +519,7 @@ final class LauncherSettings: ObservableObject {
         if let v = d.string(forKey: Key.vulkanDriver.rawValue).flatMap(VulkanDriver.init(rawValue:)) { vulkanDriver = v }
         bool(.wmtr, &wmtr)
         string(.wmtrLibrary, &wmtrLibrary)
+        reloadPresets()
         reloadGames()
     }
 
@@ -537,6 +542,7 @@ final class LauncherSettings: ObservableObject {
             : ["0", "false", "off", "no"].contains(text.lowercased()) ? false : nil
         let i = Int(text), d = Double(text)
         switch key {
+        case .verboseOverlay: guard let b else { return false }; verboseOverlay = b
         case .showOverlay: guard let b else { return false }; showOverlay = b
         case .showStallIndicator: guard let b else { return false }; showStallIndicator = b
         case .openFullscreen: guard let b else { return false }; openFullscreen = b
@@ -604,11 +610,13 @@ final class LauncherSettings: ObservableObject {
     /// Restore every preference to its default (per-game entries included).
     func resetAll() {
         for k in defaults.dictionaryRepresentation().keys
-        where Key(rawValue: k) != nil || k.hasPrefix("autoCapture.") || k.hasPrefix("profile.") {
+        where Key(rawValue: k) != nil || k.hasPrefix("autoCapture.") || k.hasPrefix("profile.") || k.hasPrefix(Self.presetPrefix) {
             defaults.removeObject(forKey: k)
         }
+        savedPresets = [:]
         let fresh = LauncherSettings(blank: ())
         loading = true
+        verboseOverlay = fresh.verboseOverlay
         showOverlay = fresh.showOverlay; showStallIndicator = fresh.showStallIndicator
         openFullscreen = fresh.openFullscreen; perfStats = fresh.perfStats; sendCrashReports = fresh.sendCrashReports
         muteInBackground = fresh.muteInBackground; pauseInBackground = fresh.pauseInBackground
@@ -696,6 +704,35 @@ final class LauncherSettings: ObservableObject {
         reloadGames()
     }
 
+    func savePreset(_ profile: GameProfile, named name: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = Self.presetPrefix + name
+        guard !name.isEmpty, defaults.object(forKey: key) == nil, GameProfile.validEnv(profile.env),
+              let data = try? JSONEncoder().encode(profile.normalized) else { return }
+        defaults.set(data, forKey: key)
+        reloadPresets()
+    }
+
+    func removePreset(named name: String) {
+        defaults.removeObject(forKey: Self.presetPrefix + name)
+        reloadPresets()
+    }
+
+    private func reloadPresets() {
+        var presets: [String: GameProfile] = [:]
+        for (key, value) in defaults.dictionaryRepresentation() where key.hasPrefix(Self.presetPrefix) {
+            guard let data = value as? Data, let profile = try? JSONDecoder().decode(GameProfile.self, from: data) else { continue }
+            presets[String(key.dropFirst(Self.presetPrefix.count))] = profile
+        }
+        savedPresets = presets
+    }
+
+    func compatibilityPresets(for appid: Int) -> [CompatibilityPreset] {
+        CompatibilityPreset.builtIns(for: appid) + savedPresets.sorted {
+            $0.key.localizedStandardCompare($1.key) == .orderedAscending
+        }.map { CompatibilityPreset(id: "saved." + $0.key, name: $0.key, profile: $0.value) }
+    }
+
     // MARK: mouse auto-capture
 
     /// Global auto-capture in games for this run (`--auto-capture` wins over the saved value).
@@ -760,6 +797,7 @@ final class LauncherSettings: ObservableObject {
             guard let id = Int(k.dropFirst("autoCapture.".count)), let b = v as? Bool else { continue }
             byId[id, default: Game(appid: id, name: nil, autoCapture: nil)].autoCapture = b
         }
+        for id in loadedProfiles.keys where byId[id] == nil { byId[id] = Game(appid: id, name: nil, autoCapture: nil) }
         let list = byId.values.sorted { ($0.name ?? "~\($0.appid)").localizedCaseInsensitiveCompare($1.name ?? "~\($1.appid)") == .orderedAscending }
         if list != games { games = list }
     }
