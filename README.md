@@ -10,4 +10,4 @@ For compatible Windows games, SteamOS uses Proton to run the game and FEX to tra
 
 In **Settings → Games → Compatibility…**, you can choose a renderer for each game, apply a compatibility preset, or save your own.
 
-[Русский](README.ru.md) · [简体中文](README.zh.md)
+[Explore Stella’s features and how they work](features.md)
