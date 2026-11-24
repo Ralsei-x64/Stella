@@ -214,11 +214,60 @@ enum SettingsSelfTest {
             exit(failures.isEmpty ? 0 : 1)
         }
 
-        /// SwiftUI menu pickers (SwiftUIPopupButton, an NSButton with a menu).
-        func popups(in view: NSView?) -> [NSButton] {
-            guard let view else { return [] }
-            if let b = view as? NSButton, "\(type(of: b))".contains("Popup") { return [b] }
-            return view.subviews.flatMap { popups(in: $0) }
+        // SwiftUI can draw these buttons without NSButton subviews. Hit the rendered label
+        // in our own window so this self-test also runs without macOS Accessibility access.
+        func click(_ title: String, in window: NSWindow) -> Bool {
+            guard let image = SettingsWindowController.snapshot(window)?.cgImage,
+                  let frame = window.contentView?.superview else { return false }
+            let text = VNRecognizeTextRequest()
+            text.automaticallyDetectsLanguage = true
+            do { try VNImageRequestHandler(cgImage: image).perform([text]) } catch { return false }
+            func canonical(_ label: String) -> String { label.replacingOccurrences(of: "…", with: "...") }
+            let matches = (text.results ?? []).filter {
+                $0.topCandidates(1).first.map { canonical($0.string) == canonical(title) } == true
+            }
+            guard let box = matches.max(by: { $0.boundingBox.midY < $1.boundingBox.midY })?.boundingBox else {
+                log("selftest-settings: button missing in snapshot: " + title)
+                return false
+            }
+            let y = frame.isFlipped ? 1 - box.midY : box.midY
+            let location = frame.convert(NSPoint(x: box.midX * frame.bounds.width, y: y * frame.bounds.height), to: nil)
+            // AppKit buttons can run a tracking loop inside mouseDown. Queue the mouseUp first.
+            func event(_ type: NSEvent.EventType) -> NSEvent? {
+                NSEvent.mouseEvent(with: type, location: location, modifierFlags: [],
+                                   timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                   context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0)
+            }
+            guard let down = event(.leftMouseDown), let up = event(.leftMouseUp) else { return false }
+            NSApp.postEvent(up, atStart: true)
+            window.sendEvent(down)
+            return true
+        }
+
+        // Open the visible SwiftUI picker through the window. Newer SwiftUI versions render
+        // these controls directly, so there may be no NSPopUpButton in the view hierarchy.
+        @MainActor func pickerItems(showing value: String, in window: NSWindow, selecting choice: String) async -> [String] {
+            var items: [String] = []
+            let center = NotificationCenter.default
+            let observer = center.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: nil) { note in
+                guard let menu = note.object as? NSMenu else { return }
+                items = menu.items.map { $0.isSeparatorItem ? "----" : $0.title }
+                let index = menu.indexOfItem(withTitle: choice)
+                let select = Timer(timeInterval: 0.02, repeats: false) { _ in
+                    menu.cancelTracking()
+                    if index >= 0 { menu.performActionForItem(at: index) }
+                }
+                RunLoop.main.add(select, forMode: .common)
+                RunLoop.main.add(select, forMode: .eventTracking)
+            }
+            defer { center.removeObserver(observer) }
+            for _ in 0..<3 {
+                NSApp.activate()
+                guard click(value, in: window) else { break }
+                try? await Task.sleep(for: .milliseconds(300))
+                if !items.isEmpty { break }
+            }
+            return items
         }
 
         /// The Display tab with the real window-size popup items drawn next to it (a popup menu is
@@ -372,63 +421,32 @@ enum SettingsSelfTest {
                 String(localized: "\(String(p.width)) × \(String(p.height)) (\(p.label)) — larger than this screen")
             }
             sw.show(tab: .display)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                guard let popup = popups(in: sw.window.contentView)
-                    .first(where: { presetTitles.contains($0.title) || largerPresetTitles.contains($0.title)
-                        || $0.title == fitTitle || $0.title == customTitle }) else {
-                    failures.append("display-presets: no window size popup")
-                    return done()
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(800))
+                let selected: String
+                if let index = LauncherSettings.sizePresets.firstIndex(where: { $0.id == saved.0 }) {
+                    let preset = LauncherSettings.sizePresets[index]
+                    selected = preset.width > fit.0 || preset.height > fit.1 ? largerPresetTitles[index] : presetTitles[index]
+                } else {
+                    selected = saved.0 == LauncherSettings.fitPreset ? fitTitle : customTitle
                 }
-                let selected = popup.title
                 let tabShot = sw.snapshot()
-                func itemTitles() -> [String] { popup.menu?.items.map { $0.isSeparatorItem ? "----" : $0.title } ?? [] }
-                // SwiftUI fills the picker's menu only when it opens. Read the items the moment
-                // tracking begins, then close it. While another app is frontmost (the Mac in use)
-                // an open can fail — tracking never starts, or ends at once when the other app
-                // takes activation — so re-activate and retry a few times.
-                var titles: [String] = []
-                var attempts = 0
-                let nc = NotificationCenter.default
-                let began = nc.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: nil) { n in
-                    guard let menu = n.object as? NSMenu, menu === popup.menu else { return }
-                    titles = itemTitles()
-                    DispatchQueue.main.async { menu.cancelTracking() }
+                let titles = await pickerItems(showing: selected, in: sw.window, selecting: customTitle)
+                let path = "\(dir)/settings-display-presets.txt"
+                try? (titles.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+                let presets = titles.filter { presetTitles.contains($0) || largerPresetTitles.contains($0) }
+                log("selftest-settings: \(path): \(titles.count) items, \(presets.count) presets,"
+                    + " \(titles.filter { largerPresetTitles.contains($0) }.count) larger than this screen")
+                if presets.count != LauncherSettings.sizePresets.count || !titles.contains(customTitle)
+                    || !titles.contains(fitTitle) {
+                    failures.append("display-presets: unexpected items \(titles)")
                 }
-                DispatchQueue.main.async {
-                    while titles.isEmpty && attempts < 4 {
-                        attempts += 1
-                        NSApp.activate()
-                        sw.window.makeKeyAndOrderFront(nil)
-                        // Safety net: never leave the menu open if the notification was missed.
-                        let timer = Timer(timeInterval: 1, repeats: false) { _ in
-                            if titles.isEmpty { titles = itemTitles() }
-                            popup.menu?.cancelTracking()
-                        }
-                        RunLoop.main.add(timer, forMode: .common)
-                        popup.performClick(nil)   // returns when the menu closes (or at once if it did not open)
-                        timer.invalidate()
-                        if titles.isEmpty {
-                            log("selftest-settings: window size popup did not open (attempt \(attempts), app active: \(NSApp.isActive))")
-                            RunLoop.main.run(until: Date().addingTimeInterval(0.5))
-                        }
-                    }
-                    nc.removeObserver(began)
-                    let path = "\(dir)/settings-display-presets.txt"
-                    try? (titles.joined(separator: "\n") + "\n").write(toFile: path, atomically: true, encoding: .utf8)
-                    let presets = titles.filter { presetTitles.contains($0) || largerPresetTitles.contains($0) }
-                    log("selftest-settings: \(path): \(titles.count) items, \(presets.count) presets,"
-                        + " \(titles.filter { largerPresetTitles.contains($0) }.count) larger than this screen")
-                    if presets.count != LauncherSettings.sizePresets.count || !titles.contains(customTitle)
-                        || !titles.contains(fitTitle) {
-                        failures.append("display-presets: unexpected items \(titles)")
-                    }
-                    capture("display-presets", tabShot.flatMap { withMenuItems($0, titles, selected: selected) })
-                    settings.windowSizePreset = LauncherSettings.customPreset
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                        capture("display-custom", sw.snapshot())
-                        (settings.windowSizePreset, settings.windowWidth, settings.windowHeight) = saved
-                        done()
-                    }
+                capture("display-presets", tabShot.flatMap { withMenuItems($0, titles, selected: selected) })
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    if settings.windowSizePreset != LauncherSettings.customPreset { failures.append("display-presets: Custom was not selected") }
+                    capture("display-custom", sw.snapshot())
+                    (settings.windowSizePreset, settings.windowWidth, settings.windowHeight) = saved
+                    done()
                 }
             }
         }
@@ -456,51 +474,16 @@ enum SettingsSelfTest {
                 guard let root else { return [] }
                 return [root] + root.subviews.flatMap { views($0) }
             }
-            // SwiftUI can draw these buttons without NSButton subviews. Hit the rendered label
-            // in our own window so this self-test also runs without macOS Accessibility access.
-            func click(_ title: String, in window: NSWindow) -> Bool {
-                guard let image = SettingsWindowController.snapshot(window)?.cgImage,
-                      let frame = window.contentView?.superview else { return false }
-                let text = VNRecognizeTextRequest()
-                text.automaticallyDetectsLanguage = true
-                do { try VNImageRequestHandler(cgImage: image).perform([text]) } catch { return false }
-                func canonical(_ label: String) -> String { label.replacingOccurrences(of: "…", with: "...") }
-                let matches = (text.results ?? []).filter {
-                    $0.topCandidates(1).first.map { canonical($0.string) == canonical(title) } == true
-                }
-                guard let box = matches.max(by: { $0.boundingBox.midY < $1.boundingBox.midY })?.boundingBox else {
-                    log("selftest-settings: button missing in snapshot: " + title)
-                    return false
-                }
-                let y = frame.isFlipped ? 1 - box.midY : box.midY
-                let location = frame.convert(NSPoint(x: box.midX * frame.bounds.width, y: y * frame.bounds.height), to: nil)
-                // AppKit buttons can run a tracking loop inside mouseDown. Queue the mouseUp first.
-                func event(_ type: NSEvent.EventType) -> NSEvent? {
-                    NSEvent.mouseEvent(with: type, location: location, modifierFlags: [],
-                                       timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
-                                       context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0)
-                }
-                guard let down = event(.leftMouseDown), let up = event(.leftMouseUp) else { return false }
-                NSApp.postEvent(up, atStart: true)
-                window.sendEvent(down)
-                return true
-            }
-            @MainActor func selectPreset(_ preset: CompatibilityPreset, from popup: NSButton) async {
-                let center = NotificationCenter.default
-                let observer = center.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: nil) { note in
-                    guard let menu = note.object as? NSMenu, menu === popup.menu else { return }
-                    let index = menu.indexOfItem(withTitle: preset.name)
-                    DispatchQueue.main.async {
-                        menu.cancelTracking()
-                        if index >= 0 { menu.performActionForItem(at: index) }
+            @MainActor func openEditor() async -> NSWindow? {
+                for _ in 0..<2 {
+                    sw.window.makeKeyAndOrderFront(nil)
+                    guard click(String(localized: "Compatibility…"), in: sw.window) else { return nil }
+                    for _ in 0..<20 {
+                        try? await Task.sleep(for: .milliseconds(75))
+                        if let sheet = sw.window.attachedSheet, sheet.isVisible { return sheet }
                     }
                 }
-                let timer = Timer(timeInterval: 1, repeats: false) { _ in popup.menu?.cancelTracking() }
-                RunLoop.main.add(timer, forMode: .common)
-                popup.performClick(nil)
-                timer.invalidate()
-                center.removeObserver(observer)
-                try? await Task.sleep(for: .milliseconds(250))
+                return nil
             }
             Task { @MainActor in
                 defer { done() }
@@ -517,16 +500,14 @@ enum SettingsSelfTest {
                 var expected = profileTestEnv
                 let shaderPreset = CompatibilityPreset.builtIns(for: profileID).first { $0.id == "sm66" }!
                 for (value, apply) in [(shaderPreset.profile.env, true), ("PROTON_LOG=1", false), ("", true), ("VKD3D_CONFIG=dxr", true), ("", true)] {
-                    guard click(String(localized: "Compatibility…"), in: sw.window) else { failures.append("profiles: editor button missing"); return }
-                    try? await Task.sleep(for: .milliseconds(450))
-                    guard let sheet = sw.window.attachedSheet else { failures.append("profiles: sheet missing"); return }
+                    guard let sheet = await openEditor() else { failures.append("profiles: could not open editor for \(value)"); return }
+                    try? await Task.sleep(for: .milliseconds(300))
                     let content = views(sheet.contentView)
                     guard let field = content.compactMap({ $0 as? NSTextField }).first(where: { $0.isEditable }),
                           field.stringValue == expected else { failures.append("profiles: reopened launch options differ"); return }
                     if value == shaderPreset.profile.env {
-                        guard let popup = popups(in: sheet.contentView).first(where: { $0.title == String(localized: "Custom settings") })
-                        else { failures.append("profiles: preset picker missing"); return }
-                        await selectPreset(shaderPreset, from: popup)
+                        _ = await pickerItems(showing: String(localized: "Custom settings"), in: sheet, selecting: shaderPreset.name)
+                        try? await Task.sleep(for: .milliseconds(250))
                         guard field.stringValue == value else { failures.append("profiles: preset did not populate the editor"); return }
                         capture("compatibility", SettingsWindowController.snapshot(sheet))
                     } else {
@@ -539,7 +520,10 @@ enum SettingsSelfTest {
                     guard settings.profile(for: profileID).env == expected else { failures.append("profiles: draft applied early"); return }
                     let title = apply ? String(localized: "Apply") : String(localized: "Cancel")
                     guard click(title, in: sheet) else { failures.append("profiles: missing sheet action " + title); return }
-                    try? await Task.sleep(for: .milliseconds(350))
+                    for _ in 0..<20 where sw.window.attachedSheet != nil {
+                        try? await Task.sleep(for: .milliseconds(75))
+                    }
+                    guard sw.window.attachedSheet == nil else { failures.append("profiles: \(title) did not dismiss the sheet"); return }
                     if apply { expected = value }
                     if LauncherSettings().profile(for: profileID).env != expected { failures.append("profiles: sheet persistence") }
                 }
@@ -557,11 +541,10 @@ enum SettingsSelfTest {
                 window.makeKeyAndOrderFront(nil)
                 defer { window.close() }
                 try? await Task.sleep(for: .milliseconds(450))
-                guard let picker = popups(in: window.contentView).first(where: { $0.title == String(localized: "Stella defaults") })
-                else { failures.append("profiles: title preset picker missing"); return }
-                await selectPreset(titlePreset, from: picker)
+                let items = await pickerItems(showing: String(localized: "Stella defaults"), in: window, selecting: titlePreset.name)
+                try? await Task.sleep(for: .milliseconds(250))
                 let field = views(window.contentView).compactMap { $0 as? NSTextField }.first { $0.isEditable }
-                if picker.title != titlePreset.name || field?.stringValue != titlePreset.profile.env {
+                if !items.contains(titlePreset.name) || field?.stringValue != titlePreset.profile.env {
                     failures.append("profiles: selecting the PRAGMATA preset did not load its launch options")
                 }
                 capture("compatibility-title", SettingsWindowController.snapshot(window))

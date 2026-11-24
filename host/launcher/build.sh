@@ -48,10 +48,18 @@ cp "$HERE/Info.plist" "$PLIST.new"
 version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST.new")
 /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $version" "$PLIST.new"
 
+# AppKit and SwiftUI use the executable's linked SDK to select native window
+# chrome and controls. SwiftPM's Swift Build linker can record the deployment
+# target in both version fields unless it receives the SDK version explicitly.
+sdk_path=$(xcrun --sdk macosx --show-sdk-path)
+sdk_version=$(xcrun --sdk macosx --show-sdk-version)
+deployment_target=$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$PLIST.new")
 SWIFT_FLAGS=(
     -c release
+    --sdk "$sdk_path"
     --package-path "$HERE"
     --scratch-path "$HERE/.build"
+    -Xlinker -platform_version -Xlinker macos -Xlinker "$deployment_target" -Xlinker "$sdk_version"
     -Xcc "-I$KRUN_PREFIX/include"
     -Xlinker "-L$KRUN_PREFIX/lib"
     -Xlinker -rpath -Xlinker @executable_path/host/lib
@@ -73,6 +81,11 @@ else
     rm -f "$BIN"
 fi
 swift build "${SWIFT_FLAGS[@]}"
+linked_sdk=$(xcrun vtool -show-build "$BIN" | awk '$1 == "sdk" {print $2; exit}')
+if [[ "$linked_sdk" != "$sdk_version" ]]; then
+    echo "build.sh: launcher linked SDK is $linked_sdk, expected macOS $sdk_version" >&2
+    exit 1
+fi
 
 python3 "$HERE/l10n.py" sync "$HERE/.build/stringsdata"
 python3 "$HERE/l10n.py" check
