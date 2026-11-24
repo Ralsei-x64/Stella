@@ -81,7 +81,7 @@ final class VM {
     }
 
     init(options o: Options, display: DisplayBackend, console: Console, progressPort: ProgressPort?,
-         clockPort: ClockPort?, sleepPort: SleepPort?, padPorts: [PadPort], clipboardPort: ClipboardPort?,
+         clockPort: ClockPort?, batteryPort: ProgressPort, sleepPort: SleepPort?, padPorts: [PadPort], clipboardPort: ClipboardPort?,
          inputs: VMInputs?, netSocket: String?) throws {
         VM.raiseFileLimit()
         try krun("krun_init_log", krun_init_log(KRUN_LOG_TARGET_DEFAULT, o.krunLogLevel, UInt32(KRUN_LOG_STYLE_AUTO), 0))
@@ -104,6 +104,8 @@ final class VM {
             try krun("krun_add_console_port_inout(\(ClockPort.name))",
                      krun_add_console_port_inout(ctx, UInt32(con), ClockPort.name, c.guestInputFd, c.guestOutputFd))
         }
+        try krun("krun_add_console_port_inout(fx.battery)",
+                 krun_add_console_port_inout(ctx, UInt32(con), BatterySync.portName, batteryPort.guestInputFd, batteryPort.guestOutputFd))
         // Guest sleep requests (systemd-suspend.service) -> the launcher pauses the VM, and wakes.
         if let s = sleepPort {
             try krun("krun_add_console_port_inout(\(SleepPort.name))",

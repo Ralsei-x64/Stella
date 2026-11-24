@@ -159,7 +159,7 @@ enum SettingsSelfTest {
         // Crash-report scrubbing: the user, host, computer and Bonjour names never leave the Mac.
         var failures = CrashReporting.scrubSelfCheck() + CrashReporting.scannerSelfCheck() + CrashReporting.exitSelfCheck()
             + VMSizing.selfCheck()
-            + UpdateChecker.selfCheck() + MacTime.selfCheck() + Options.shareMountSelfCheck() + KeyboardLayoutSync.selfCheck() + ClipboardSync.selfCheck() + GameProfile.selfCheck()
+            + UpdateChecker.selfCheck() + MacTime.selfCheck() + MacBattery.selfCheck() + Options.shareMountSelfCheck() + KeyboardLayoutSync.selfCheck() + ClipboardSync.selfCheck() + GameProfile.selfCheck()
             + SteamControllerRouting.selfCheck() + GenericHIDRouting.selfCheck() + PadPort.coalesceSelfCheck()
             + sharedLibrarySelfCheck() + cursorSizeSelfCheck()
         let savedVirtualPad = settings.virtualPad

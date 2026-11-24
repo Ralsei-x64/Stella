@@ -1,0 +1,8 @@
+#!/bin/sh
+# Each write to the controller is one snapshot. Closing it removes both supplies.
+set -eu
+exec 3<>/dev/virtio-ports/fx.battery 4>/dev/stella-battery
+printf 'battery-ready\n' >&3
+while IFS= read -r state <&3; do
+    printf '%s\n' "$state" >&4
+done

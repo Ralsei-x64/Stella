@@ -29,6 +29,30 @@ r test -e /dev/mapper/control
 r test -e /dev/net/tun
 r test -e /dev/hwrng
 r test -e /dev/rtc0
+r test -c /dev/stella-battery
+r sh -ec '
+	bat=/sys/class/power_supply/BAT0
+	ac=/sys/class/power_supply/AC
+	exec 3>/dev/stella-battery
+	test ! -e "$bat"
+	printf "41 discharging\n" >&3
+	test "$(cat "$bat/capacity")" = 41
+	test "$(cat "$bat/status")" = Discharging
+	test "$(cat "$ac/online")" = 0
+	printf "60 idle\n" >&3
+	test "$(cat "$bat/status")" = "Not charging"
+	test "$(cat "$ac/online")" = 1
+	if printf "101 charging\n" >&3; then exit 1; fi
+	test "$(cat "$bat/capacity")" = 60
+	printf "off\n" >&3
+	test ! -e "$bat"
+	test ! -e "$ac"
+	printf "100 full\n" >&3
+	test "$(cat "$bat/status")" = Full
+	exec 3>&-
+	test ! -e "$bat"
+	test ! -e "$ac"
+'
 r test -e /proc/config.gz
 r mount -t binder binder /dev/binderfs
 r test -e /dev/binderfs/anbox-binder

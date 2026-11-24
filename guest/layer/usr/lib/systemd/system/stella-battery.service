@@ -1,0 +1,14 @@
+[Unit]
+Description=Mac battery and AC adapter
+ConditionPathExists=/dev/stella-battery
+ConditionPathExists=/dev/virtio-ports/fx.battery
+
+[Service]
+ExecStart=/usr/lib/steamac/stella-battery
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+ProtectHome=yes
+ProtectSystem=strict
+PrivateNetwork=yes
+CapabilityBoundingSet=

@@ -587,7 +587,7 @@ final class ProgressPort {
     }
 
     /// Reader thread: every complete line goes to `handler` on the main queue.
-    func start(_ handler: @escaping (String) -> Void) {
+    func start(name: String = ProgressPort.name, _ handler: @escaping (String) -> Void) {
         let t = Thread { [readFd] in
             var splitter = LineSplitter()
             var buf = [UInt8](repeating: 0, count: 4096)
@@ -602,7 +602,7 @@ final class ProgressPort {
                 }
             }
         }
-        t.name = "fx.progress"
+        t.name = name
         t.start()
     }
 }

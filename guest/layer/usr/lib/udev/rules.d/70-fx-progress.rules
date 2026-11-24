@@ -18,3 +18,5 @@ SUBSYSTEM=="virtio-ports", ATTR{name}=="fx.pad[2-9]", TAG+="systemd", ENV{SYSTEM
 # The port "fx.sleep" (guest sleep -> the launcher pauses the VM) needs no rule:
 # only root's systemd-suspend.service opens it (fx-progress-agent sleep), and
 # the default root-only mode is right.
+# The root battery reader owns the kernel power supplies while this port is open.
+SUBSYSTEM=="virtio-ports", ATTR{name}=="fx.battery", TAG+="systemd", ENV{SYSTEMD_WANTS}+="stella-battery.service"

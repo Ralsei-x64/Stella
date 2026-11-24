@@ -3440,6 +3440,38 @@
         }
       }
     },
+    "Share Mac battery with SteamOS" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Передавать уровень заряда Mac в SteamOS"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与 SteamOS 共享 Mac 电池状态"
+          }
+        }
+      }
+    },
+    "Show the Mac’s battery percentage and charging status in SteamOS." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывать в SteamOS процент заряда и состояние зарядки аккумулятора Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 SteamOS 中显示 Mac 的电池电量百分比和充电状态。"
+          }
+        }
+      }
+    },
     "Shows a status card after 2 seconds without GPU activity, including while a game loads or compiles shaders." : {
       "localizations" : {
         "ru" : {

@@ -530,6 +530,11 @@ private struct GeneralTab: View {
                 }
             }
             Section {
+                Toggle(isOn: $settings.shareMacBattery) {
+                    Label2(title: "Share Mac battery with SteamOS",
+                           detail: String(localized: "Show the Mac’s battery percentage and charging status in SteamOS."),
+                           now: true, key: .shareMacBattery)
+                }
                 Toggle(isOn: $settings.followMacTime) {
                     Label2(title: "Use the Mac's time zone and clock format",
                            detail: String(localized: "SteamOS gets the Mac's time zone and 12/24-hour format at every start, until you change each in SteamOS or Steam."),

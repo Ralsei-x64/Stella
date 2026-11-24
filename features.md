@@ -40,6 +40,8 @@ Open **Settings → Games → Compatibility…** beside a title. Open **Preset**
 
 With **Settings → Display → Guest display follows the window size** enabled, SteamOS resizes with the window. In fullscreen, Stella uses the active monitor’s pixel dimensions within the virtual display’s limits. On a MacBook with a notch, it uses the area below the camera. A fixed guest resolution lets you keep the same rendering workload when moving between displays.
 
+**Settings → General → Share Mac battery with SteamOS** is on by default. SteamOS shows the MacBook’s battery percentage and charging status. Turning it off removes the battery from SteamOS immediately. Macs without an internal battery leave the indicator hidden.
+
 The pointer follows the Mac cursor in Steam. Games can capture it for relative movement, such as looking around in first person. **Settings → Mouse** controls capture and cursor size. **Controller** maps connected gamepads for SteamOS, and **Sound** lets playback follow the Mac’s default output or use a specific device.
 
 ## Storage, suspend, and streaming

@@ -1,0 +1,161 @@
+From: Stella <stella@localhost>
+Subject: [PATCH] power: supply: expose the Mac battery supplied by Stella
+
+--- a/drivers/power/supply/Makefile
++++ b/drivers/power/supply/Makefile
+@@ -131,5 +131,6 @@
+ obj-$(CONFIG_BATTERY_UG3105)	+= ug3105_battery.o
+ obj-$(CONFIG_CHARGER_QCOM_SMB2)	+= qcom_smbx.o
+ obj-$(CONFIG_FUEL_GAUGE_MM8013)	+= mm8013.o
++obj-$(CONFIG_POWER_SUPPLY)	+= stella_battery.o
+ obj-$(CONFIG_MACSMC_POWER)	+= macsmc-power.o
+ obj-$(CONFIG_CHARGER_MAX77759)	+= max77759_charger.o
+--- /dev/null
++++ b/drivers/power/supply/stella_battery.c
+@@ -0,0 +1,146 @@
++// SPDX-License-Identifier: GPL-2.0
++/* The fx.battery port's reader owns the two supplies for its lifetime. */
++#include <linux/fs.h>
++#include <linux/miscdevice.h>
++#include <linux/module.h>
++#include <linux/mutex.h>
++#include <linux/power_supply.h>
++#include <linux/uaccess.h>
++
++static struct power_supply *battery, *mains;
++static DEFINE_MUTEX(update_lock);
++static atomic_t opened = ATOMIC_INIT(0);
++/* Publish capacity and status together to concurrent sysfs/uevent readers. */
++static unsigned int reading;
++
++static int get_property(struct power_supply *psy, enum power_supply_property prop,
++			union power_supply_propval *val)
++{
++	unsigned int sample = READ_ONCE(reading);
++	int status = sample >> 8;
++
++	switch (prop) {
++	case POWER_SUPPLY_PROP_CAPACITY: val->intval = sample & 0xff; break;
++	case POWER_SUPPLY_PROP_STATUS:   val->intval = status; break;
++	case POWER_SUPPLY_PROP_ONLINE:   val->intval = status != POWER_SUPPLY_STATUS_DISCHARGING; break;
++	case POWER_SUPPLY_PROP_PRESENT:  val->intval = 1; break;
++	case POWER_SUPPLY_PROP_SCOPE:    val->intval = POWER_SUPPLY_SCOPE_SYSTEM; break;
++	default: return -EINVAL;
++	}
++	return 0;
++}
++
++static const enum power_supply_property bat_props[] = {
++	POWER_SUPPLY_PROP_PRESENT, POWER_SUPPLY_PROP_SCOPE,
++	POWER_SUPPLY_PROP_CAPACITY, POWER_SUPPLY_PROP_STATUS,
++};
++static const enum power_supply_property ac_props[] = { POWER_SUPPLY_PROP_ONLINE };
++static const struct power_supply_desc bat_desc = {
++	.name = "BAT0", .type = POWER_SUPPLY_TYPE_BATTERY, .get_property = get_property,
++	.properties = bat_props, .num_properties = ARRAY_SIZE(bat_props),
++};
++static const struct power_supply_desc ac_desc = {
++	.name = "AC", .type = POWER_SUPPLY_TYPE_MAINS, .get_property = get_property,
++	.properties = ac_props, .num_properties = ARRAY_SIZE(ac_props),
++};
++static struct miscdevice controller;
++
++static void remove_supplies(void)
++{
++	if (battery)
++		power_supply_unregister(battery);
++	if (mains)
++		power_supply_unregister(mains);
++	battery = mains = NULL;
++}
++
++static int update_supplies(unsigned int capacity, unsigned int status)
++{
++	unsigned int old = READ_ONCE(reading), next = status << 8 | capacity;
++	struct power_supply *supply;
++
++	WRITE_ONCE(reading, next);
++	if (battery) {
++		if (old != next)
++			power_supply_changed(battery);
++		if (((old >> 8) == POWER_SUPPLY_STATUS_DISCHARGING) !=
++		    (status == POWER_SUPPLY_STATUS_DISCHARGING))
++			power_supply_changed(mains);
++		return 0;
++	}
++
++	supply = power_supply_register(controller.this_device, &ac_desc, NULL);
++	if (IS_ERR(supply))
++		return PTR_ERR(supply);
++	mains = supply;
++	supply = power_supply_register(controller.this_device, &bat_desc, NULL);
++	if (IS_ERR(supply)) {
++		remove_supplies();
++		return PTR_ERR(supply);
++	}
++	battery = supply;
++	return 0;
++}
++
++static ssize_t set_state(struct file *file, const char __user *buf, size_t count, loff_t *pos)
++{
++	char input[32], *state;
++	unsigned int capacity, status;
++	int err = 0;
++
++	if (!count || count >= sizeof(input))
++		return -EINVAL;
++	if (copy_from_user(input, buf, count))
++		return -EFAULT;
++	if (memchr(input, '\0', count))
++		return -EINVAL;
++	input[count] = '\0';
++	strim(input);
++	if (!strcmp(input, "off")) {
++		mutex_lock(&update_lock);
++		remove_supplies();
++		mutex_unlock(&update_lock);
++		return count;
++	}
++	state = strchr(input, ' ');
++	if (!state)
++		return -EINVAL;
++	*state++ = '\0';
++	if (kstrtouint(input, 10, &capacity) || capacity > 100)
++		return -EINVAL;
++	if (!strcmp(state, "discharging"))     status = POWER_SUPPLY_STATUS_DISCHARGING;
++	else if (!strcmp(state, "charging"))   status = POWER_SUPPLY_STATUS_CHARGING;
++	else if (!strcmp(state, "full"))       status = POWER_SUPPLY_STATUS_FULL;
++	else if (!strcmp(state, "idle"))       status = POWER_SUPPLY_STATUS_NOT_CHARGING;
++	else return -EINVAL;
++
++	mutex_lock(&update_lock);
++	err = update_supplies(capacity, status);
++	mutex_unlock(&update_lock);
++	return err ? err : count;
++}
++
++static int open_controller(struct inode *inode, struct file *file)
++{
++	if (atomic_cmpxchg(&opened, 0, 1))
++		return -EBUSY;
++	return stream_open(inode, file);
++}
++
++static int close_controller(struct inode *inode, struct file *file)
++{
++	remove_supplies();
++	atomic_set(&opened, 0);
++	return 0;
++}
++
++static const struct file_operations control_ops = {
++	.owner = THIS_MODULE, .open = open_controller, .release = close_controller, .write = set_state,
++};
++static struct miscdevice controller = {
++	.minor = MISC_DYNAMIC_MINOR, .name = "stella-battery", .mode = 0200, .fops = &control_ops,
++};
++module_misc_device(controller);
++
++MODULE_DESCRIPTION("Stella host battery and AC adapter");
++MODULE_LICENSE("GPL");

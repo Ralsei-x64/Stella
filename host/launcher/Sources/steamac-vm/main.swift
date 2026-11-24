@@ -372,6 +372,8 @@ do {
     }
 
     let clockPort = try ClockPort()
+    let batteryPort = try ProgressPort()
+    let battery = BatterySync(port: batteryPort, settings: settings)
     // Guest sleep needs the window (overlay, wake input): headless, the guest's sleep fails instead.
     let sleepPort = options.headless ? nil : try SleepPort()
     // The guest's gamepads follow the Mac's controllers (GamepadBridge): need the window too.
@@ -379,7 +381,7 @@ do {
     // Clipboard sharing follows the app's activation (ClipboardSync): window only.
     let clipboardPort = options.headless ? nil : try ClipboardPort()
     let vm = try VM(options: options, display: display, console: console, progressPort: progressPort,
-                    clockPort: clockPort, sleepPort: sleepPort, padPorts: padPorts, clipboardPort: clipboardPort,
+                    clockPort: clockPort, batteryPort: batteryPort, sleepPort: sleepPort, padPorts: padPorts, clipboardPort: clipboardPort,
                     inputs: inputs, netSocket: Supervisor.netSocket)
     lifecycle.vm = vm
     let gamepad = padPorts.isEmpty ? nil : GamepadBridge(ports: padPorts, settings: settings, typeOverride: options.padType)
@@ -450,7 +452,7 @@ do {
     if options.headless {
         console.start()
         vm.start()
-        dispatchMain()
+        withExtendedLifetime(battery) { dispatchMain() }
     }
 
     let app = SteamacApplication.shared as! SteamacApplication
@@ -619,7 +621,7 @@ do {
     }
     console.start()
     vm.start()
-    withExtendedLifetime((presenter, gamepad, progressPort, keyboardLayouts, supervisorWatch, perfSubscription, gamePause, suspender, clipboard,
+    withExtendedLifetime((presenter, gamepad, progressPort, battery, keyboardLayouts, supervisorWatch, perfSubscription, gamePause, suspender, clipboard,
                           gameStats, streamCapture, streamInput, streamHost, streamPrompt, streamSubscription, streamStatusSubscription)) {
         app.run()
     }
