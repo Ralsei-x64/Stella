@@ -28,13 +28,22 @@ APP="$OUT/$NAME.app"
 STAGE="$OUT/.bundle.$$"
 TMP="$STAGE/$NAME.app"
 
-# Fail before notices/staging (and before touching an existing app).
-python3 "$ROOT/scripts/guest-artifacts.py" check-release
-for f in Image initramfs.cpio.gz steamac-layer.img host/bin/gvproxy host/bin/desync Frameworks/Sparkle.framework/Sparkle; do
+# The native build uses its build receipts. Launcher CI checks the pinned runtime
+# against this commit and the hashes of its guest images before and after copying.
+guest="$OUT"
+notices="$OUT/licenses"
+if [[ -n ${STELLA_PINNED_RUNTIME:-} ]]; then
+    guest="$STELLA_PINNED_RUNTIME/guest"
+    notices="$STELLA_PINNED_RUNTIME/licenses"
+    python3 "$ROOT/scripts/ci/runtime.py" verify "$STELLA_PINNED_RUNTIME" "$guest"
+else
+    python3 "$ROOT/scripts/guest-artifacts.py" check-release
+    "$HERE/licenses.sh"
+fi
+for f in host/bin/gvproxy host/bin/desync Frameworks/Sparkle.framework/Sparkle; do
     [[ -f "$OUT/$f" ]] || { echo "bundle.sh: missing $OUT/$f" >&2; exit 1; }
 done
-"$HERE/licenses.sh"  # fail before modifying the existing app if a notice is unavailable
-[[ -f "$OUT/licenses/THIRD-PARTY-NOTICES.txt" ]] || { echo 'bundle.sh: missing notices index' >&2; exit 1; }
+[[ -f "$notices/THIRD-PARTY-NOTICES.txt" ]] || { echo 'bundle.sh: missing notices index' >&2; exit 1; }
 
 rm -rf "$STAGE"
 trap 'rm -rf "$STAGE"' EXIT
@@ -45,7 +54,9 @@ PLIST="$HERE/.build/Info.plist"
 [[ -f $PLIST ]] || PLIST="$HERE/Info.plist"
 cp "$PLIST" "$TMP/Contents/Info.plist"
 # Lets the app find the repo's work/out/steamos.img as its default disk when moved elsewhere.
-/usr/libexec/PlistBuddy -c "Add :SteamacBuildOut string $OUT" "$TMP/Contents/Info.plist"
+if [[ -z ${STELLA_PINNED_RUNTIME:-} ]]; then
+    /usr/libexec/PlistBuddy -c "Add :SteamacBuildOut string $OUT" "$TMP/Contents/Info.plist"
+fi
 # Release defaults (AppBundle.releaseDefaults): SSH off, generated guest password, no default
 # password on created disks. The dev launcher work/out/steamac-vm (embedded Info.plist) has none.
 /usr/libexec/PlistBuddy -c "Add :SteamacReleaseDefaults bool true" "$TMP/Contents/Info.plist"
@@ -113,15 +124,17 @@ done < <(otool -L "$exe" | awk 'NR > 1 {print $1}')
 
 # Resources (APFS clones where possible; the layer and kernel are rebuilt by the guest scripts).
 for f in Image initramfs.cpio.gz steamac-layer.img; do
-    cp -c "$OUT/$f" "$TMP/Contents/Resources/$f" 2>/dev/null || cp "$OUT/$f" "$TMP/Contents/Resources/$f"
-    cp "$OUT/$f.inputs.json" "$TMP/Contents/Resources/$f.inputs.json"
+    cp -c "$guest/$f" "$TMP/Contents/Resources/$f" 2>/dev/null || cp "$guest/$f" "$TMP/Contents/Resources/$f"
+    if [[ -z ${STELLA_PINNED_RUNTIME:-} ]]; then
+        cp "$guest/$f.inputs.json" "$TMP/Contents/Resources/$f.inputs.json"
+    fi
 done
 cp "$OUT/host/bin/gvproxy" "$TMP/Contents/Resources/gvproxy"
 cp "$OUT/host/bin/desync" "$TMP/Contents/Resources/desync"
 chmod 755 "$TMP/Contents/Resources/gvproxy" "$TMP/Contents/Resources/desync"
 cp "$ROOT/scripts/keys/steamdeck-images.pem" "$TMP/Contents/Resources/steamdeck-images.pem"
 mkdir -p "$TMP/Contents/Resources/licenses"
-cp -R "$OUT/licenses/." "$TMP/Contents/Resources/licenses/"
+cp -R "$notices/." "$TMP/Contents/Resources/licenses/"
 for lproj in "$HERE/.build/l10n"/*.lproj; do
     [[ -d $lproj ]] || { echo "bundle.sh: no compiled localizations in $HERE/.build/l10n (run build.sh)" >&2; exit 1; }
     cp -R "$lproj" "$TMP/Contents/Resources/"
@@ -185,7 +198,12 @@ PY
 
 # Recheck the copied receipts and bytes before sealing the app. A concurrent
 # guest rebuild during assembly must not publish mismatched resources.
-python3 "$ROOT/scripts/guest-artifacts.py" check-bundle "$TMP/Contents/Resources"
+if [[ -n ${STELLA_PINNED_RUNTIME:-} ]]; then
+    python3 "$ROOT/scripts/ci/runtime.py" verify "$STELLA_PINNED_RUNTIME" "$TMP/Contents/Resources"
+    cp "$STELLA_PINNED_RUNTIME/guest.sha256" "$TMP/Contents/Resources/"
+else
+    python3 "$ROOT/scripts/guest-artifacts.py" check-bundle "$TMP/Contents/Resources"
+fi
 
 # Sign inside-out: libraries, helper executables, Sparkle's helpers and framework, then the bundle
 # (executable + sealed resources).

@@ -136,7 +136,7 @@ and llvm-mingw build tools and every downloaded source with SHA-256.
 libkrun loads libwmtr_host.dylib at run time; a rebuilt library of the same
 name can replace it. To replace the guest DLLs/unixlib, rebuild the payload,
 then rebuild the layer with scripts/build-image.sh layer. These layer build
-scripts and the rest of steamac are available at https://github.com/fxgl/steamac
+scripts and the rest of Stella are available at https://github.com/Ralsei-x64/Stella
 at $REF. The shader compiler statically links LLVM $LLVM_VERSION (Apache-2.0
 WITH LLVM-exception), built from github.com/llvm/llvm-project's
 llvmorg-$LLVM_VERSION release; its license is in repo/LICENSES/ and the app's
@@ -197,7 +197,7 @@ done <<< "$source_checksums"
 [[ $count -ge 2 ]] || { echo "incomplete source in $dsc_name" >&2; exit 1; }
 
 cat > "$ST/README.txt" <<EOF
-FX Steam Launcher $version — corresponding GPL/LGPL source ($REF)
+Stella $version — corresponding GPL/LGPL source ($REF)
 
 The DMG contains the following binaries. The tarballs in sources/ are the
 complete upstream sources; repo/ contains this release's exact configuration,
@@ -234,7 +234,7 @@ $dxmt_notes
 Debian snapshot archive: $snapshot
 EOF
 
-output="$ROOT/work/out/dist/FX-Steam-Launcher-$version-gpl-sources.tar"
+output="$ROOT/work/out/dist/Stella-$version-gpl-sources.tar"
 # Write to a temporary file so an interrupted run cannot leave a partial release asset.
 tar -cf "$ST/archive.tar" -C "$ST" README.txt repo sources
 mv "$ST/archive.tar" "$output"
