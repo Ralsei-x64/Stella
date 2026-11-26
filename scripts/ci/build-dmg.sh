@@ -38,7 +38,7 @@ app="$stage/mount/Stella.app"
 [[ $(lipo -archs "$app/Contents/MacOS/steamac-vm") == arm64 ]]
 codesign --verify --deep --strict "$app"
 codesign -d --entitlements - --xml "$app" 2>/dev/null |
-    python3 -c 'import plistlib, sys; sys.exit(plistlib.load(sys.stdin.buffer).get("com.apple.security.hypervisor") is not True)'
+    python3 -c 'import plistlib, sys; sys.exit(plistlib.loads(sys.stdin.buffer.read()).get("com.apple.security.hypervisor") is not True)'
 "$app/Contents/MacOS/steamac-vm" --help > /dev/null
 hdiutil detach "$stage/mount" -quiet
 mounted=0

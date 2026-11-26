@@ -20,15 +20,20 @@ if [[ $GITHUB_REF_TYPE == tag ]]; then
             gh release upload "$tag" "$dmg"
         fi
     else
-        flags=()
-        [[ $tag == *-* ]] && flags+=(--prerelease)
-        gh release create "$tag" "$dmg" --verify-tag --title "Stella $tag" --notes-file "$notes" "${flags[@]}"
+        prerelease=false
+        [[ $tag == *-* ]] && prerelease=true
+        gh release create "$tag" "$dmg" --verify-tag --title "Stella $tag" --notes-file "$notes" --prerelease="$prerelease"
     fi
 else
     # Keep a stable public download URL; the tag identifies the source of this DMG.
     rolling="$(dirname "$dmg")/Stella-arm64.dmg"
     mv "$dmg" "$rolling"
     if gh release view continuous >/dev/null 2>&1; then
+        order=$(gh api "repos/$GH_REPO/compare/continuous...$GITHUB_SHA" --jq .status)
+        if [[ $order == behind ]]; then
+            echo "A newer commit has already been published."
+            exit 0
+        fi
         gh release upload continuous "$rolling" --clobber
         gh api --method PATCH "repos/$GH_REPO/git/refs/tags/continuous" -f sha="$GITHUB_SHA" -F force=true --silent
         gh release edit continuous --notes-file "$notes"
