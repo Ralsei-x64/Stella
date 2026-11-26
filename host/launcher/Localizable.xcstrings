@@ -696,6 +696,22 @@
         }
       }
     },
+    "Access" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Доступ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "访问权限"
+          }
+        }
+      }
+    },
     "Acknowledgements" : {
       "localizations" : {
         "ru" : {
@@ -712,6 +728,54 @@
         }
       }
     },
+    "Add Drive" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавить диск"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加驱动器"
+          }
+        }
+      }
+    },
+    "Add Drive…" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавить диск…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加驱动器…"
+          }
+        }
+      }
+    },
+    "Add a drive" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавление диска"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加驱动器"
+          }
+        }
+      }
+    },
     "Additional controllers" : {
       "localizations" : {
         "ru" : {
@@ -724,6 +788,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更多控制器"
+          }
+        }
+      }
+    },
+    "Additional drives" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дополнительные диски"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附加驱动器"
           }
         }
       }
@@ -858,6 +938,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在 macOS 提示时允许本地网络访问。SteamOS 挂起或睡眠时串流会停止，恢复后可重新开始串流。"
+          }
+        }
+      }
+    },
+    "Allow microphone access" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разрешить доступ к микрофону"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许使用麦克风"
+          }
+        }
+      }
+    },
+    "Allow microphone access when this game launches. Game audio is unaffected." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разрешить этой игре использовать микрофон при следующем запуске. На воспроизведение звука это не влияет."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许游戏在下次启动时使用麦克风。此设置不影响游戏声音。"
           }
         }
       }
@@ -1039,6 +1151,22 @@
         }
       }
     },
+    "Attach on startup" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подключать при запуске"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启动时连接"
+          }
+        }
+      }
+    },
     "Auto" : {
       "localizations" : {
         "ru" : {
@@ -1135,6 +1263,22 @@
         }
       }
     },
+    "Automatic and Balanced calculate the graphics budget from the RAM available on your Mac." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В автоматическом и сбалансированном режимах объём видеопамяти рассчитывается по доступной памяти Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动和平衡模式会根据 Mac 的可用内存计算显存预算。"
+          }
+        }
+      }
+    },
     "Automatic: half of this Mac's RAM (4 to 16 GB). The Mac's GPU memory comes from the same RAM, so the rest stays with macOS and the games' graphics." : {
       "localizations" : {
         "ru" : {
@@ -1163,6 +1307,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自动：此 Mac 的每个性能核心分配一个（2 至 8 个）。"
+          }
+        }
+      }
+    },
+    "Back" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назад"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回"
+          }
+        }
+      }
+    },
+    "Balanced (custom RAM)" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Баланс (выбор ОЗУ)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平衡（自定内存）"
           }
         }
       }
@@ -1227,6 +1403,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Steam 中的按键图标和布局。自动：与控制它的控制器类型一致（DualSense、DualShock 4，其他类型为 Xbox 360）；Steam Controller 以其本身直通到 SteamOS。Steam Controller：仅直通 Steam Controller（蓝牙或其 Puck 接收器），支持触控板、陀螺仪和背键；其他控制器显示为 Xbox 360。支持按键、摇杆、扳机和振动（除非直通 DualSense，否则不支持触摸板、陀螺仪或光条）。自动模式还会将 macOS 不支持的通用 HID 操纵杆和手柄按其本身直通给支持 HID 的空闲玩家。它们会让位给 GameController 控制器；不匹配多轴设备。关闭“虚拟控制器”可停用此功能；请在 SteamOS 中设置布局和校准。"
+          }
+        }
+      }
+    },
+    "CPU core count" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Число ядер процессора"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU 核心数"
           }
         }
       }
@@ -1361,6 +1553,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法打开或锁定 SteamOS 磁盘 %@：权限不足。请在 Finder >“显示简介”中确认您对文件及其所在宗卷具有读写权限。在“系统设置”>“隐私与安全性”中允许 Stella 访问可移动宗卷（必要时授予完全磁盘访问权限），然后重试。您也可以将磁盘移到可写的本地文件夹，再在设置中重新选择。"
+          }
+        }
+      }
+    },
+    "Capacity" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ёмкость"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "容量"
           }
         }
       }
@@ -1541,6 +1749,22 @@
         }
       }
     },
+    "Choose Volume…" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выбрать том…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选取宗卷…"
+          }
+        }
+      }
+    },
     "Choose a SteamOS disk image" : {
       "localizations" : {
         "ru" : {
@@ -1553,6 +1777,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选择 SteamOS 磁盘映像"
+          }
+        }
+      }
+    },
+    "Choose a capacity from 1 to 8192 GiB." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выберите ёмкость от 1 до 8192 ГиБ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择 1 到 8192 GiB 之间的容量。"
           }
         }
       }
@@ -1607,6 +1847,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选择 wmtr 执行器库"
+          }
+        }
+      }
+    },
+    "Choose how many virtual CPU cores SteamOS can use." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выберите количество виртуальных ядер процессора для SteamOS."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择 SteamOS 可使用的虚拟 CPU 核心数。"
+          }
+        }
+      }
+    },
+    "Choose which drives SteamOS attaches on its next start." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выберите диски для подключения при следующем запуске SteamOS."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择下次启动 SteamOS 时要连接的驱动器。"
           }
         }
       }
@@ -1672,6 +1944,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "关闭"
+          }
+        }
+      }
+    },
+    "Close overlay apps while Stella runs" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Закрывать приложения с оверлеями во время работы Stella"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stella 运行时关闭悬浮窗应用"
           }
         }
       }
@@ -1788,6 +2076,22 @@
         }
       }
     },
+    "Connect the selected external disk. Identical disk identities cannot be passed through." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подключите выбранный внешний диск. Диски с одинаковыми идентификаторами нельзя передать в SteamOS."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请连接所选外置磁盘。标识相同的磁盘无法直通。"
+          }
+        }
+      }
+    },
     "Connected controllers — live input test" : {
       "localizations" : {
         "ru" : {
@@ -1865,6 +2169,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拷贝"
+          }
+        }
+      }
+    },
+    "Cores" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ядра"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "核心数"
           }
         }
       }
@@ -2009,6 +2329,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "创建 SteamOS 磁盘"
+          }
+        }
+      }
+    },
+    "Create a data disk, attach an external drive, or mount a Mac folder." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Создайте диск для данных, подключите внешний диск или смонтируйте папку Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建数据磁盘、连接外置驱动器或挂载 Mac 文件夹。"
           }
         }
       }
@@ -2557,6 +2893,22 @@
         }
       }
     },
+    "Discord Rich Presence" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Статус игры в Discord"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discord 游戏动态"
+          }
+        }
+      }
+    },
     "Disk image" : {
       "localizations" : {
         "ru" : {
@@ -2798,6 +3150,70 @@
         }
       }
     },
+    "Drive actions" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Действия с диском"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "驱动器操作"
+          }
+        }
+      }
+    },
+    "Drive name" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Имя диска"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "驱动器名称"
+          }
+        }
+      }
+    },
+    "Drive type" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тип диска"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "驱动器类型"
+          }
+        }
+      }
+    },
+    "Drive unavailable" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Диск недоступен"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "驱动器不可用"
+          }
+        }
+      }
+    },
     "DualSense" : {
       "localizations" : {
         "ru" : {
@@ -2991,6 +3407,22 @@
         }
       }
     },
+    "Enter a value from %lld to %lld." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введите значение от %lld до %lld."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请输入 %lld 到 %lld 之间的数值。"
+          }
+        }
+      }
+    },
     "Enter the four-digit PIN shown by Moonlight on %@." : {
       "localizations" : {
         "ru" : {
@@ -3072,6 +3504,22 @@
         }
       }
     },
+    "External disk" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Внешний диск"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "外置磁盘"
+          }
+        }
+      }
+    },
     "Extracting Steam update" : {
       "localizations" : {
         "ru" : {
@@ -3136,6 +3584,22 @@
         }
       }
     },
+    "Forget missing disk" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Убрать отсутствующий диск из списка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除找不到的磁盘"
+          }
+        }
+      }
+    },
     "Frame rate" : {
       "localizations" : {
         "ru" : {
@@ -3164,6 +3628,102 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "帧率和帧时间"
+          }
+        }
+      }
+    },
+    "Games see up to this much VRAM, limited by the GPU’s available heap size." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Игры увидят не больше этого объёма видеопамяти в пределах доступной кучи памяти графического процессора."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "游戏可识别的显存最多为此数值，实际大小受 GPU 可用内存堆容量限制。"
+          }
+        }
+      }
+    },
+    "GiB" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ГиБ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GiB"
+          }
+        }
+      }
+    },
+    "GiB (1–8192)" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ГиБ (1–8192)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GiB（1–8192）"
+          }
+        }
+      }
+    },
+    "Guest RAM" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ОЗУ гостевой системы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "虚拟机内存"
+          }
+        }
+      }
+    },
+    "Image unavailable" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Образ недоступен"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "磁盘映像不可用"
+          }
+        }
+      }
+    },
+    "Invalid drive configuration." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недопустимые параметры диска."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "驱动器配置无效。"
           }
         }
       }
@@ -3216,6 +3776,38 @@
         }
       }
     },
+    "Mac folder" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Папка на Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac 文件夹"
+          }
+        }
+      }
+    },
+    "Manage Drives…" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Управление дисками…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理驱动器…"
+          }
+        }
+      }
+    },
     "Medium" : {
       "localizations" : {
         "ru" : {
@@ -3248,6 +3840,86 @@
         }
       }
     },
+    "More Options" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дополнительные действия"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多选项"
+          }
+        }
+      }
+    },
+    "Mounted Mac volume" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Смонтированный том Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已挂载的 Mac 卷"
+          }
+        }
+      }
+    },
+    "Move this virtual disk to Trash?" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переместить этот виртуальный диск в Корзину?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将此虚拟磁盘移到废纸篓？"
+          }
+        }
+      }
+    },
+    "Move to Trash" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переместить в Корзину"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移到废纸篓"
+          }
+        }
+      }
+    },
+    "Move to Trash…" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переместить в Корзину…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移到废纸篓…"
+          }
+        }
+      }
+    },
     "My presets" : {
       "localizations" : {
         "ru" : {
@@ -3276,6 +3948,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "我的预设…"
+          }
+        }
+      }
+    },
+    "Name" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Имя"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名称"
+          }
+        }
+      }
+    },
+    "No additional drives" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дополнительных дисков нет"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚无附加驱动器"
+          }
+        }
+      }
+    },
+    "No eligible external disks found." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подходящих внешних дисков не найдено."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到符合条件的外置磁盘。"
+          }
+        }
+      }
+    },
+    "Only virtual disks created by Stella can be deleted." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Можно удалить только виртуальные диски, созданные Stella."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只能删除由 Stella 创建的虚拟磁盘。"
           }
         }
       }
@@ -3376,6 +4112,118 @@
         }
       }
     },
+    "Quit Alcove while using Stella in fullscreen to allow direct display. Reopen it when you leave fullscreen if it was running before." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Закрывает Alcove в полноэкранном режиме Stella для прямого вывода изображения. Если Alcove был запущен, он снова откроется при выходе из этого режима."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在全屏使用 Stella 时退出 Alcove，以允许直接显示。离开全屏时，如果 Alcove 之前在运行，则会重新打开。"
+          }
+        }
+      }
+    },
+    "Raw physical disk" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прямой доступ к физическому диску"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始物理磁盘"
+          }
+        }
+      }
+    },
+    "Read and write" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтение и запись"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读写"
+          }
+        }
+      }
+    },
+    "Read-only" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Только чтение"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只读"
+          }
+        }
+      }
+    },
+    "Refresh" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обновить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刷新"
+          }
+        }
+      }
+    },
+    "Remove from Stella" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить из списка Stella"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从 Stella 移除"
+          }
+        }
+      }
+    },
+    "Review drive" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверка параметров диска"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认驱动器设置"
+          }
+        }
+      }
+    },
     "Runtime" : {
       "localizations" : {
         "ru" : {
@@ -3404,6 +4252,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "将当前设置存为预设"
+          }
+        }
+      }
+    },
+    "Select a disk" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выберите диск"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择磁盘"
+          }
+        }
+      }
+    },
+    "Select the folder or volume again." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выберите папку или том заново."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请重新选择文件夹或宗卷。"
+          }
+        }
+      }
+    },
+    "Select the root of a mounted external volume. Finder and SteamOS can both access its files." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выберите корневой каталог подключённого внешнего тома. Его файлы будут доступны в Finder и SteamOS."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择已挂载外置卷的根目录。访达和 SteamOS 均可访问卷中的文件。"
+          }
+        }
+      }
+    },
+    "Select the volume itself in /Volumes." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выберите сам том в каталоге /Volumes."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在 /Volumes 中选择宗卷本身。"
+          }
+        }
+      }
+    },
+    "Sessions already recorded on this Mac are included. You can rate games, turn sharing off for single games or altogether in Settings > Compatibility." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уже записанные на этом Mac сессии тоже будут отправлены. Оценить игры, отключить отправку для отдельных игр или полностью можно в «Настройки > Совместимость»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已在这台 Mac 上记录的会话也会一并发送。你可以在“设置 > 兼容性”中为游戏评分，或为单个游戏或全部关闭共享。"
           }
         }
       }
@@ -3456,6 +4384,22 @@
         }
       }
     },
+    "Show in Finder" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показать в Finder"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在访达中显示"
+          }
+        }
+      }
+    },
     "Show the Mac’s battery percentage and charging status in SteamOS." : {
       "localizations" : {
         "ru" : {
@@ -3468,6 +4412,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在 SteamOS 中显示 Mac 的电池电量百分比和充电状态。"
+          }
+        }
+      }
+    },
+    "Show when you’re browsing Steam and how long you’ve been playing your current game in Discord." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывать в Discord, когда вы просматриваете библиотеку Steam и сколько времени играете в текущую игру."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 Discord 中显示你正在浏览 Steam 或当前游戏的游玩时长。"
           }
         }
       }
@@ -3552,6 +4512,22 @@
         }
       }
     },
+    "Source" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Источник"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "来源"
+          }
+        }
+      }
+    },
     "Steam may need to restart to apply changes." : {
       "localizations" : {
         "ru" : {
@@ -3568,6 +4544,22 @@
         }
       }
     },
+    "SteamOS accesses the selected folder’s files directly." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SteamOS получит прямой доступ к файлам выбранной папки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SteamOS 可直接访问所选文件夹中的文件。"
+          }
+        }
+      }
+    },
     "SteamOS enables feature level 12.1 and shader model 6.6 when the driver supports 64-bit atomics on buffers and images." : {
       "localizations" : {
         "ru" : {
@@ -3580,6 +4572,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "当驱动支持对缓冲区和图像执行 64 位原子操作时，SteamOS 会启用功能级别 12.1 和着色器模型 6.6。"
+          }
+        }
+      }
+    },
+    "SteamOS mount point" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Точка монтирования в SteamOS"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SteamOS 挂载点"
           }
         }
       }
@@ -3616,6 +4624,22 @@
         }
       }
     },
+    "Stella Settings" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настройки Stella"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stella 设置"
+          }
+        }
+      }
+    },
     "Stella defaults" : {
       "localizations" : {
         "ru" : {
@@ -3628,6 +4652,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stella 默认设置"
+          }
+        }
+      }
+    },
+    "Stella is possible thanks to the work of Steamac’s developers and Valve’s effort to run Windows games on Linux.\n\nThanks for using Stella!" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stella появилась благодаря работе разработчиков Steamac и усилиям Valve по запуску игр для Windows на Linux.\n\nСпасибо, что пользуетесь Stella!"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "感谢 Steamac 开发者的工作，以及 Valve 为在 Linux 上运行 Windows 游戏所做的努力，才有了 Stella。\n\n感谢使用 Stella！"
           }
         }
       }
@@ -3664,6 +4704,182 @@
         }
       }
     },
+    "The connected disk changed during authorization." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подключённый диск изменился во время авторизации."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "授权期间所连接的磁盘发生了变化。"
+          }
+        }
+      }
+    },
+    "The disk “%@” and all of its contents will move to the Mac Trash." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Диск «%@» и всё его содержимое будут перемещены в Корзину на Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "磁盘“%@”及其所有内容将移到 Mac 废纸篓。"
+          }
+        }
+      }
+    },
+    "The drive will be attached the next time SteamOS starts." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Диск будет подключён при следующем запуске SteamOS."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "驱动器将在下次启动 SteamOS 时连接。"
+          }
+        }
+      }
+    },
+    "The ext4 disk grows on your Mac as SteamOS writes data." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Диск ext4 занимает место на Mac по мере записи данных из SteamOS."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "随着 SteamOS 写入数据，ext4 磁盘占用的 Mac 空间会逐渐增加。"
+          }
+        }
+      }
+    },
+    "The external disk is read-only." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Внешний диск доступен только для чтения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此外置磁盘为只读。"
+          }
+        }
+      }
+    },
+    "The original volume is disconnected." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Исходный том отключён."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原先的宗卷已断开连接。"
+          }
+        }
+      }
+    },
+    "The selected budgets leave less than the recommended reserve for macOS. Lower RAM or VRAM if you experience memory pressure." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "При выбранных значениях для macOS остаётся меньше рекомендуемого объёма памяти. При нехватке памяти уменьшите ОЗУ или видеопамять."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选预算给 macOS 留下的内存低于建议预留值。如遇到内存压力，请减少虚拟机内存或显存预算。"
+          }
+        }
+      }
+    },
+    "The selected volume or folder is unavailable." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выбранный том или папка недоступны."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所选宗卷或文件夹不可用。"
+          }
+        }
+      }
+    },
+    "The virtual disk image is missing or was replaced." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Образ виртуального диска отсутствует или был заменён."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "虚拟磁盘映像缺失或已被替换。"
+          }
+        }
+      }
+    },
+    "This folder or volume is already configured." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Эта папка или том уже добавлены."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此文件夹或宗卷已配置。"
+          }
+        }
+      }
+    },
+    "This physical disk is already configured." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот физический диск уже добавлен."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此物理磁盘已配置。"
+          }
+        }
+      }
+    },
     "Titanfall 2 with DXMT" : {
       "localizations" : {
         "ru" : {
@@ -3692,6 +4908,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Titanfall 2 使用 DXMT（关闭麦克风）"
+          }
+        }
+      }
+    },
+    "Toggle Sidebar" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показать или скрыть боковую панель"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示或隐藏边栏"
+          }
+        }
+      }
+    },
+    "Uncheck Attach on startup and restart SteamOS before deleting this disk." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Снимите флажок «Подключать при запуске» и перезапустите SteamOS перед удалением этого диска."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消勾选“启动时连接”并重启 SteamOS，然后再删除此磁盘。"
+          }
+        }
+      }
+    },
+    "Unmount all volumes on this disk in Disk Utility, keep it connected, and allow macOS access when prompted." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Размонтируйте все тома этого диска в Дисковой утилите, оставьте его подключённым и подтвердите запрос macOS на доступ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在“磁盘工具”中卸载此磁盘的所有宗卷，保持设备连接，并在 macOS 提示时允许访问。"
+          }
+        }
+      }
+    },
+    "Unmount the disk’s volumes in Disk Utility and keep it connected. SteamOS gets its partitions and sectors. Writable access allows SteamOS to erase the disk. Eligible disks use 512-byte logical sectors." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Размонтируйте тома в Дисковой утилите и оставьте диск подключённым. SteamOS получит доступ к разделам и секторам. При разрешённой записи SteamOS может стереть диск. Поддерживаются логические секторы размером 512 байт."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在“磁盘工具”中卸载该磁盘的宗卷，并保持设备连接。SteamOS 将直接访问分区和扇区。启用写入后，SteamOS 可以抹掉磁盘。仅支持逻辑扇区为 512 字节的磁盘。"
           }
         }
       }
@@ -3740,6 +5020,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用本机启动测试中的设置。游戏仍可能提示显卡不受支持。"
+          }
+        }
+      }
+    },
+    "VRAM budget" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Объём видеопамяти"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显存预算"
           }
         }
       }
@@ -7250,22 +8546,6 @@
         }
       }
     },
-    "Sessions already recorded on this Mac are included. You can rate games, turn sharing off for single games or altogether in Settings > Games." : {
-      "localizations" : {
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Уже записанные на этом Mac сессии тоже будут отправлены. Оценить игры, отключить отправку для отдельных игр или полностью можно в «Настройки > Игры»."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已在这台 Mac 上记录的会话也会一并发送。你可以在“设置 > 游戏”中为游戏评分，或为单个游戏或全部关闭共享。"
-          }
-        }
-      }
-    },
     "Sessions waiting to be sent: %lld." : {
       "localizations" : {
         "ru" : {
@@ -9740,6 +11020,22 @@
         }
       }
     },
+    "Virtual disk" : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виртуальный диск"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "虚拟磁盘"
+          }
+        }
+      }
+    },
     "Volume" : {
       "localizations" : {
         "ru" : {
@@ -10063,18 +11359,18 @@
         }
       }
     },
-    "Your rating of a game, if you set one in Settings > Games." : {
+    "Your rating of a game, if you set one in Settings > Compatibility." : {
       "localizations" : {
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ваша оценка игры, если вы поставили её в «Настройки > Игры»."
+            "value" : "Ваша оценка игры, если вы поставили её в «Настройки > Совместимость»."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你对游戏的评分（如果你在“设置 > 游戏”中设置了）。"
+            "value" : "你对游戏的评分（如果你在“设置 > 兼容性”中设置了）。"
           }
         }
       }
@@ -10411,6 +11707,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "上次游玩 %@"
+          }
+        }
+      }
+    },
+    "macOS could not read the disk inventory." : {
+      "localizations" : {
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS не удалось получить список дисков."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS 无法读取磁盘列表。"
           }
         }
       }

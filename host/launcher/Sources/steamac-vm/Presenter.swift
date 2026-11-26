@@ -128,6 +128,8 @@ final class VMView: NSView {
         if let requested {
             if streamCaptureActive { streamLayerPolicies[layer] = requested.boolValue }
             layer.framebufferOnly = streamCaptureActive ? false : requested.boolValue
+            // DXMT sets the drawable size after attaching the surface and may clear it on resize.
+            refreshGameLayers()
         }
         onStreamChange?()
     }
@@ -202,6 +204,9 @@ final class VMView: NSView {
     var contentPixelSize: CGSize
     weak var controller: WindowController?
     private var displayDiagnosticTimer: Timer?
+    private var pendingDisplayChange: DispatchWorkItem?
+    private var lastDisplayConfiguration: String?
+    private var fullscreenGameCoversScanout = false
 
     init(frame: NSRect, renderer: Renderer, contentPixelSize: CGSize) {
         self.renderer = renderer
@@ -251,6 +256,8 @@ final class VMView: NSView {
         super.viewDidMoveToWindow()
         displayDiagnosticTimer?.invalidate()
         displayDiagnosticTimer = nil
+        pendingDisplayChange?.cancel()
+        pendingDisplayChange = nil
         let nc = NotificationCenter.default
         nc.removeObserver(self)
         guard let window else { return }
@@ -258,6 +265,8 @@ final class VMView: NSView {
                        name: NSWindow.didChangeScreenNotification, object: window)
         nc.addObserver(self, selector: #selector(displayConfigurationChanged(_:)),
                        name: NSApplication.didChangeScreenParametersNotification, object: nil)
+        nc.addObserver(self, selector: #selector(windowVisibilityChanged),
+                       name: NSWindow.didChangeOcclusionStateNotification, object: window)
         logDisplayConfiguration(reason: "window attached")
         // DXMT's game layer bypasses Renderer. Sample its actual policy, not the main
         // scanout layer's policy, so a report can distinguish unsynced presents from
@@ -271,7 +280,22 @@ final class VMView: NSView {
     }
 
     @objc private func displayConfigurationChanged(_ notification: Notification) {
-        logDisplayConfiguration(reason: notification.name.rawValue)
+        // A Space transition can deliver a screen notification on every animation frame.
+        guard pendingDisplayChange == nil else { return }
+        let reason = notification.name.rawValue
+        let work = DispatchWorkItem { [weak self] in
+            self?.pendingDisplayChange = nil
+            self?.updatePresentationSize()
+            self?.logDisplayConfiguration(reason: reason)
+        }
+        pendingDisplayChange = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+    }
+
+    @objc private func windowVisibilityChanged() {
+        guard window?.occlusionState.contains(.visible) == true else { return }
+        refreshGameLayers()
+        redraw()
     }
 
     /// Mode refresh can be zero on variable-refresh screens: retain the AppKit interval
@@ -290,7 +314,7 @@ final class VMView: NSView {
                 + " drawables=\(layer.maximumDrawableCount) timeout=\(layer.allowsNextDrawableTimeout)"
         }
         let games = (metalLayer.sublayers ?? []).compactMap { $0 as? CAMetalLayer }
-        log("display pacing: \(reason); host \"\(screen.localizedName)\" id=\(id) builtin=\(CGDisplayIsBuiltin(id) != 0)"
+        let config = "host \"\(screen.localizedName)\" id=\(id) builtin=\(CGDisplayIsBuiltin(id) != 0)"
             + " mode=\(hostMode) max-fps=\(screen.maximumFramesPerSecond)"
             + " refresh-ms min/max/granularity="
             + String(format: "%.3f/%.3f/%.3f", screen.minimumRefreshInterval * 1000,
@@ -298,7 +322,9 @@ final class VMView: NSView {
             + " backing-scale=\(window.backingScaleFactor) fullscreen=\(window.styleMask.contains(.fullScreen))"
             + " guest-layer={\(policy(metalLayer))} game-visible=\(gameLayersVisible)"
             + " game-layers=[\(games.map { policy($0) }.joined(separator: "; "))]"
-            + "; scanout perf shown is estimated, not DXMT game presentation timing")
+        guard config != lastDisplayConfiguration || reason == "perf sample" else { return }
+        lastDisplayConfiguration = config
+        log("display pacing: \(reason); \(config); scanout perf shown is estimated, not DXMT game presentation timing")
     }
 
     override func makeBackingLayer() -> CALayer { metalLayer }
@@ -308,13 +334,13 @@ final class VMView: NSView {
 
     override func viewDidChangeBackingProperties() {
         super.viewDidChangeBackingProperties()
-        updateDrawableSize()
+        updatePresentationSize()
         logDisplayConfiguration(reason: "backing properties changed")
     }
 
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
-        updateDrawableSize()
+        updatePresentationSize()
     }
 
     // Mouse events go to the controller (window.acceptsMouseMovedEvents delivers mouseMoved here).
@@ -341,14 +367,18 @@ final class VMView: NSView {
     }
     override func mouseExited(with e: NSEvent) { controller?.pointerExited() }
 
-    private func updateDrawableSize() {
+    func updatePresentationSize() {
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
         metalLayer.contentsScale = scale
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         cursorLayer.contentsScale = scale
         CATransaction.commit()
-        let size = CGSize(width: (bounds.width * scale).rounded(), height: (bounds.height * scale).rounded())
+        // The guest can render at native panel resolution below the notch. The final Metal
+        // drawable matches the window's backing pixels, including on a scaled Retina desktop.
+        let backing = convertToBacking(bounds).size
+        let size = CGSize(width: backing.width.rounded(), height: backing.height.rounded())
+        updateFullscreenGameCoverage()
         if size != metalLayer.drawableSize && size.width > 0 && size.height > 0 {
             metalLayer.drawableSize = size
             redraw()
@@ -423,6 +453,13 @@ final class VMView: NSView {
 
     /// `flushedAt`: the guest flush time of a new frame (perf stats), 0 for a plain redraw.
     func redraw(flushedAt: CFTimeInterval = 0) {
+        // Uploads and streaming continue while off-Space. Do not block the AppKit thread
+        // acquiring an on-screen drawable that WindowServer cannot currently display.
+        if let window, !window.occlusionState.contains(.visible), renderer.captureNextDraw == nil { return }
+        if fullscreenGameCoversScanout && renderer.captureNextDraw == nil {
+            updateCursorLayer()
+            return
+        }
         renderer.draw(to: metalLayer, flushedAt: flushedAt)
         updateCursorLayer()
     }
@@ -432,29 +469,53 @@ final class VMView: NSView {
     /// reads this through KVC for layers added later and re-applies it after their first presents.
     @objc dynamic var gameLayersVisible = false {
         didSet {
-            Self.applyGameLayers(visible: gameLayersVisible, in: metalLayer)
-            updateStreamLayers()
-            Self.applyHUD(metalHUD, gameVisible: gameLayersVisible, main: metalLayer, mainAttached: hudAttached)
-            let tracking = gameLayersVisible && activeGameLayer != nil
-            if cursorTracking != tracking {
-                cursorTracking = tracking
-                // Never flash cached state when another game takes over.
-                guestCursorVisible = false
-                guestCursorPosition = nil
-                guestCursorGlyph = nil
-                onCursorTrackingChange?(tracking)
-            }
-            controller?.refreshHostCursor()
-            updateCursorLayer()
+            let wasCovered = fullscreenGameCoversScanout
+            refreshGameLayers()
+            if oldValue && !gameLayersVisible && !wasCovered { redraw() }
             if oldValue != gameLayersVisible { onStreamChange?() }
         }
+    }
+
+    private func refreshGameLayers() {
+        Self.applyGameLayers(visible: gameLayersVisible, in: metalLayer)
+        updateFullscreenGameCoverage()
+        updateStreamLayers()
+        Self.applyHUD(metalHUD, gameVisible: gameLayersVisible, main: metalLayer, mainAttached: hudAttached)
+        let tracking = gameLayersVisible && activeGameLayer != nil
+        if cursorTracking != tracking {
+            cursorTracking = tracking
+            guestCursorVisible = false
+            guestCursorPosition = nil
+            guestCursorGlyph = nil
+            onCursorTrackingChange?(tracking)
+        }
+        controller?.refreshHostCursor()
+        updateCursorLayer()
+    }
+
+    private func updateFullscreenGameCoverage() {
+        let game = activeGameLayer
+        let covered: Bool
+        if window?.styleMask.contains(.fullScreen) == true, let game, game.isOpaque, game.opacity == 1,
+           !metalLayer.bounds.isEmpty, game.frame.contains(metalLayer.bounds) {
+            // resizeAspect may leave letterboxing. The game plane supplies its own black bars.
+            if game.backgroundColor == nil { game.backgroundColor = NSColor.black.cgColor }
+            covered = true
+        } else {
+            covered = false
+        }
+        let wasCovered = fullscreenGameCoversScanout
+        fullscreenGameCoversScanout = covered
+        // wmtr can release the last drawable before Steam sends another focus event or frame.
+        if wasCovered && !covered { redraw() }
     }
 
     static func applyGameLayers(visible: Bool, in parent: CALayer) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        for layer in parent.sublayers ?? [] where layer is CAMetalLayer {
-            layer.isHidden = !visible
+        for case let layer as CAMetalLayer in parent.sublayers ?? [] {
+            let size = layer.drawableSize
+            layer.isHidden = !visible || layer.bounds.isEmpty || size.width < 1 || size.height < 1
         }
         CATransaction.commit()
     }
@@ -474,11 +535,11 @@ final class VMView: NSView {
                          injected: Bool = MetalHUD.loaded) {
         guard injected else { return }
         let game = (main.sublayers ?? []).compactMap { $0 as? CAMetalLayer }
-        let onGame = on && gameVisible && !game.isEmpty
+        let onGame = on && gameVisible && game.contains { !$0.isHidden }
         if mainAttached { main.developerHUDProperties = ["mode": on && !onGame ? "default" : "off"] }
         for layer in game {
             layer.developerHUDProperties = ["mode": "default"]
-            if !onGame { layer.developerHUDProperties = ["mode": "off"] }
+            if !onGame || layer.isHidden { layer.developerHUDProperties = ["mode": "off"] }
         }
     }
 

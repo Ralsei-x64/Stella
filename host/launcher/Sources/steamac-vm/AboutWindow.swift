@@ -91,7 +91,7 @@ private struct AboutCard: View {
                     .font(Font(StellaBrand.monoMedium(size: 18 * k)))
             }
             .padding(.bottom, 25 * k)
-            Text("Stella seeks to run your Steam games on your Mac with minimal hassle.\n\nStella works by running a SteamOS ARM microVM that has access to your Mac’s graphics capabilities to provide near-native graphics performance.")
+            Text(StellaBrand.introduction)
                 .fontWeight(.light)
                 .foregroundStyle(.white.opacity(0.8))
                 .padding(.bottom, 22 * k)

@@ -19,7 +19,7 @@ import Foundation
 ///   guest LINE            handle LINE as if the guest had sent it on fx.progress
 ///   dump PATH             frame + window dump (as SIGUSR1, to PATH)
 ///   settings TAB|close    open the Settings window at TAB (general, display, mouse, controller,
-///                         sound, streaming, games, advanced) or close it
+///                         sound, streaming, compatibility, advanced) or close it
 ///   settings-dump PATH    PNG of the Settings window
 ///   restart               Restart VM (as the menu / Settings button)
 ///   activate              bring the app to the front (tests of the background mute / pause)
@@ -182,7 +182,7 @@ enum DebugControl {
         case "settings":
             guard let sw = settingsWindow else { break }
             if args.first == "close" { sw.window.close(); break }
-            let tab = SettingsWindowController.Tab.allCases.first { $0.name == (args.first ?? "general") }
+            let tab = args.first == "compatibility" ? .games : SettingsWindowController.Tab.allCases.first { $0.name == args.first }
             sw.show(tab: tab ?? .general)
         case "settings-dump":
             guard let sw = settingsWindow, let rep = sw.snapshot(),

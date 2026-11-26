@@ -1,0 +1,13 @@
+[Unit]
+Description=Mount Stella storage drives
+ConditionKernelCommandLine=stella.drives
+After=local-fs.target systemd-udev-trigger.service
+Before=systemd-user-sessions.service display-manager.service getty.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/steamac/stella-drives
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

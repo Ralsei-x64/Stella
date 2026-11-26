@@ -59,6 +59,7 @@ enum SettingsSelfTest {
             try Data().write(to: URL(fileURLWithPath: boot))
             let base = ["steamac-vm", "--kernel", boot, "--disk", boot, "--no-ssh",
                         "--headless", "--frame-dump", "/dev/null", "--vulkan-driver", "moltenvk"]
+            failures += try resourceSettingsSelfCheck(settings, arguments: base)
             let cases: [(String, String, Bool, [String], [String], String?)] = [
                 ("no folder", "", true, [], [], nil),
                 ("folder enabled", folder, true, [], ["1"], nil),
@@ -100,6 +101,101 @@ enum SettingsSelfTest {
             failures.append("shared library: \(error)")
         }
         log("selftest-settings: shared library: \(failures.isEmpty ? "ok" : "FAIL: \(failures.joined(separator: "; "))")")
+        return failures
+    }
+
+    private static func resourceSettingsSelfCheck(_ settings: LauncherSettings, arguments: [String]) throws -> [String] {
+        var failures = [String]()
+        func check(_ ok: Bool, _ message: String) { if !ok { failures.append("VM resources: " + message) } }
+        defer { settings.resetAll() } // caller owns a private test domain
+        check(settings.memoryMode == .automatic, "default mode")
+        settings.memMiB = 3072
+        check(LauncherSettings().memoryMode == .balanced, "existing custom RAM selects Balanced")
+        settings.memoryMode = .advanced
+        settings.cpus = 3
+        let ram = Int(VMSizing.Host.current.memBytes >> 20) + 1
+        check(settings.set("advancedRAMMiB", String(ram)) && settings.set("advancedVRAMMiB", "24577"),
+              "manual input above the host RAM and the old 16 GiB VRAM limit")
+        let restored = LauncherSettings()
+        let (custom, _) = try Options.resolve(arguments, settings: restored)
+        check(custom.cpus == 3 && custom.memMiB == ram && custom.gpuBudgetMiB == 24577, "exact saved values")
+        restored.noteBoot(overrides: [:], autoCapture: nil)
+        restored.advancedVRAMMiB = 1345
+        check(restored.restartPending, "VRAM change requests restart")
+        let (override, keys) = try Options.resolve(arguments + ["--cpus", "2", "--mem", "2048",
+            "--cmdline", "console=hvc0 steamac.gpu_mib=777"], settings: settings)
+        check(override.cpus == 2 && override.memMiB == 2048 && override.gpuBudgetMiB == 777 &&
+              keys[.advancedVRAMMiB] != nil, "command-line overrides")
+        settings.memoryMode = .balanced
+        let (balanced, _) = try Options.resolve(arguments, settings: settings)
+        check(balanced.memMiB == 3072 && balanced.gpuBudgetMiB == VMSizing.gpuBudgetMiB(memMiB: 3072), "balanced RAM and VRAM")
+        settings.memoryMode = .advanced
+        check(settings.guestRAMMiB == ram && settings.graphicsBudgetMiB(for: ram) == 24577, "advanced values retained")
+        check(!settings.set("advancedRAMMiB", "0") && !settings.set("advancedVRAMMiB", "-1"), "positive sizes required")
+        for (ram, vram) in [(1, 1), (VMSizing.manualRAMMiB.upperBound, VMSizing.manualVRAMMiB.upperBound)] {
+            check(settings.set("advancedRAMMiB", String(ram)) && settings.set("advancedVRAMMiB", String(vram)),
+                  "accept representable manual sizes")
+            let (limits, _) = try Options.resolve(arguments, settings: LauncherSettings())
+            check(limits.memMiB == ram && limits.gpuBudgetMiB == vram, "exact manual sizes at the limits")
+        }
+        for flags in [["--mem", String(VMSizing.manualRAMMiB.upperBound + 1)],
+                      ["--cmdline", "steamac.gpu_mib=\(VMSizing.manualVRAMMiB.upperBound + 1)"]] {
+            do {
+                _ = try Options.resolve(arguments + flags, settings: settings)
+                check(false, "rejected unrepresentable command-line value")
+            } catch is OptionError {}
+        }
+        settings.memoryMode = .balanced
+        check(settings.set("memMiB", String(ram)), "Balanced accepts manual RAM")
+        let (customBalanced, _) = try Options.resolve(arguments, settings: LauncherSettings())
+        check(customBalanced.memMiB == ram && customBalanced.gpuBudgetMiB == VMSizing.gpuBudgetMiB(memMiB: ram),
+              "Balanced preserves the exact RAM and computes VRAM")
+        log("selftest-settings: VM resource settings: \(failures.isEmpty ? "ok" : "failed")")
+        return failures
+    }
+
+    private static func additionalDriveSelfCheck() -> [String] {
+        let fm = FileManager.default
+        let directory = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        var failures = [String]()
+        func check(_ value: Bool, _ detail: String) {
+            if !value { failures.append("additional drives: " + detail) }
+        }
+        do {
+            var drive = AdditionalDrive(id: UUID(), kind: .image, name: "Games with spaces", sizeGiB: 1)
+            try drive.createImage(in: directory)
+            defer { try? fm.removeItem(at: directory) }
+            let url = drive.imageURL(in: directory)
+            let attrs = try fm.attributesOfItem(atPath: url.path)
+            check(attrs[.size] as? Int64 == 1 << 30, "incorrect image capacity")
+            do { try drive.createImage(in: directory); check(false, "overwrote existing image") } catch {}
+            let fd = try DiskLock.lock(url.path)
+            do { try drive.trashImage(in: directory); check(false, "deleted busy image") }
+            catch is DiskLock.InUse {} catch { failures.append("unexpected busy error: \(error)") }
+            close(fd)
+            var folder = AdditionalDrive(id: UUID(), kind: .folder, name: "Files", readOnly: true)
+            folder.bookmark = try directory.bookmarkData()
+            let restored = try JSONDecoder().decode([AdditionalDrive].self, from: JSONEncoder().encode([drive, folder]))
+            check(restored == [drive, folder], "saved drive inventory round trip")
+            var boot = Options()
+            boot.disks = [DiskSpec(path: "boot", readOnly: false), DiskSpec(path: "layer", readOnly: true)]
+            var standard = boot
+            AdditionalDrive.attach(restored, to: &standard, directory: directory)
+            check(standard.disks.map(\.path) == ["boot", "layer", url.path], "boot and layer order")
+            check(standard.driveShares.count == 1 && standard.driveShares[0].readOnly, "read-only folder")
+            check(standard.cmdline.contains("i:\(drive.uuid):\(drive.mountName)"), "guest mount record")
+            drive.enabled = false
+            AdditionalDrive.attach([drive], to: &boot, directory: directory)
+            check(boot.disks.count == 2, "disabled image was attached")
+            boot.explicit.insert("--disk")
+            AdditionalDrive.attach(restored, to: &boot, directory: directory)
+            check(boot.disks.count == 2 && boot.driveShares.isEmpty, "explicit CLI disks inherited saved devices")
+            do { try folder.trashImage(in: directory); check(false, "folder eligible for deletion") } catch {}
+            let trashed = try drive.trashImage(in: directory)
+            check(!fm.fileExists(atPath: url.path), "idle disk was not trashed")
+            if let trashed { try fm.removeItem(at: trashed) } // only this test's newly created disk
+        } catch { failures.append("additional drives: \(error)") }
+        log("selftest-settings: additional drives: \(failures.isEmpty ? "ok" : "failed")")
         return failures
     }
 
@@ -145,7 +241,7 @@ enum SettingsSelfTest {
         settings.setProfile(GameProfile(gfx: "dxmt", driver: LauncherSettings.VulkanDriver.preferred.rawValue,
                                         env: profileTestEnv), for: profileID)
         settings.noteBoot(overrides: overrides, autoCapture: o.autoCapture)
-        let app = NSApplication.shared
+        let app = SteamacApplication.shared
         app.setActivationPolicy(.regular)
         let context = SettingsContext(settings: settings, sound: nil, restart: { log("selftest: Restart VM pressed") },
                                       vmHasPad: o.gamepad, vmHasSound: o.sound)
@@ -161,7 +257,7 @@ enum SettingsSelfTest {
             + VMSizing.selfCheck()
             + UpdateChecker.selfCheck() + MacTime.selfCheck() + MacBattery.selfCheck() + Options.shareMountSelfCheck() + KeyboardLayoutSync.selfCheck() + ClipboardSync.selfCheck() + GameProfile.selfCheck()
             + SteamControllerRouting.selfCheck() + GenericHIDRouting.selfCheck() + PadPort.coalesceSelfCheck()
-            + sharedLibrarySelfCheck() + cursorSizeSelfCheck()
+            + sharedLibrarySelfCheck() + additionalDriveSelfCheck() + cursorSizeSelfCheck()
         let savedVirtualPad = settings.virtualPad
         let savedPadType = settings.padType
         context.needsInputMonitoring = true
@@ -222,9 +318,13 @@ enum SettingsSelfTest {
             let text = VNRecognizeTextRequest()
             text.automaticallyDetectsLanguage = true
             do { try VNImageRequestHandler(cgImage: image).perform([text]) } catch { return false }
-            func canonical(_ label: String) -> String { label.replacingOccurrences(of: "…", with: "...") }
+            func canonical(_ label: String) -> String {
+                label.replacingOccurrences(of: "…", with: "...").replacingOccurrences(of: "×", with: "x")
+                    .filter { !$0.isWhitespace }
+            }
+            let expected = canonical(title)
             let matches = (text.results ?? []).filter {
-                $0.topCandidates(1).first.map { canonical($0.string) == canonical(title) } == true
+                $0.topCandidates(4).contains { canonical($0.string) == expected }
             }
             guard let box = matches.max(by: { $0.boundingBox.midY < $1.boundingBox.midY })?.boundingBox else {
                 log("selftest-settings: button missing in snapshot: " + title)
@@ -263,7 +363,8 @@ enum SettingsSelfTest {
             defer { center.removeObserver(observer) }
             for _ in 0..<3 {
                 NSApp.activate()
-                guard click(value, in: window) else { break }
+                try? await Task.sleep(for: .milliseconds(200))
+                guard click(value, in: window) else { continue }
                 try? await Task.sleep(for: .milliseconds(300))
                 if !items.isEmpty { break }
             }
@@ -463,8 +564,16 @@ enum SettingsSelfTest {
             sw.show(tab: .advanced)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                 capture("advanced-custom", sw.snapshot())
-                (settings.cpus, settings.memMiB) = saved
-                done()
+                let savedAdvanced = (settings.advancedMemory, settings.advancedRAMMiB, settings.advancedVRAMMiB)
+                settings.memoryMode = .advanced
+                settings.advancedRAMMiB = 3584
+                settings.advancedVRAMMiB = 24577
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    capture("advanced-memory", sw.snapshot())
+                    (settings.advancedMemory, settings.advancedRAMMiB, settings.advancedVRAMMiB) = savedAdvanced
+                    (settings.cpus, settings.memMiB) = saved
+                    done()
+                }
             }
         }
 
@@ -477,7 +586,8 @@ enum SettingsSelfTest {
             @MainActor func openEditor() async -> NSWindow? {
                 for _ in 0..<2 {
                     sw.window.makeKeyAndOrderFront(nil)
-                    guard click(String(localized: "Compatibility…"), in: sw.window) else { return nil }
+                    try? await Task.sleep(for: .milliseconds(200))
+                    guard click(String(localized: "Compatibility…"), in: sw.window) else { continue }
                     for _ in 0..<20 {
                         try? await Task.sleep(for: .milliseconds(75))
                         if let sheet = sw.window.attachedSheet, sheet.isVisible { return sheet }
@@ -519,7 +629,15 @@ enum SettingsSelfTest {
                     try? await Task.sleep(for: .milliseconds(150))
                     guard settings.profile(for: profileID).env == expected else { failures.append("profiles: draft applied early"); return }
                     let title = apply ? String(localized: "Apply") : String(localized: "Cancel")
-                    guard click(title, in: sheet) else { failures.append("profiles: missing sheet action " + title); return }
+                    sheet.makeFirstResponder(nil)
+                    let key = apply ? "\r" : "\u{1b}"
+                    let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                        timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: sheet.windowNumber, context: nil,
+                        characters: key, charactersIgnoringModifiers: key, isARepeat: false,
+                        keyCode: UInt16(apply ? kVK_Return : kVK_Escape))
+                    if event.map(sheet.performKeyEquivalent) != true && !click(title, in: sheet) {
+                        failures.append("profiles: missing sheet action " + title); return
+                    }
                     for _ in 0..<20 where sw.window.attachedSheet != nil {
                         try? await Task.sleep(for: .milliseconds(75))
                     }
@@ -551,6 +669,27 @@ enum SettingsSelfTest {
             }
         }
 
+        func checkDriveWizard(then done: @escaping () -> Void) {
+            let window = NSWindow(contentViewController: NSHostingController(rootView: DriveManager(settings: settings)))
+            window.title = String(localized: "Additional drives")
+            window.isReleasedWhenClosed = false
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            Task { @MainActor in
+                defer { window.close(); done() }
+                for (screen, button) in [("drives", String(localized: "Add Drive…")),
+                                         ("drive-type", String(localized: "Continue")),
+                                         ("drive-capacity", String(localized: "Cancel"))] {
+                    try? await Task.sleep(for: .milliseconds(300))
+                    capture(screen, SettingsWindowController.snapshot(window))
+                    guard click(button, in: window) else {
+                        failures.append("drive wizard: could not press " + button)
+                        return
+                    }
+                }
+            }
+        }
+
         func next() {
             guard let tab = tabs.popFirst() else {
                 CreateDiskWindowController.show(settings: settings)
@@ -576,7 +715,7 @@ enum SettingsSelfTest {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             capture("what-is-sent", SettingsWindowController.snapshot(w))
                             w.orderOut(nil)
-                            compactAlerts { displayPresets { advancedCustom { backgroundMute(then: finish) } } }
+                            compactAlerts { displayPresets { advancedCustom { checkDriveWizard { backgroundMute(then: finish) } } } }
                         }
                     }
                 }
@@ -598,10 +737,40 @@ enum SettingsSelfTest {
                 return next()
             }
             sw.show()
+            if let screen = sw.window.screen {
+                let size = sw.window.frame.size
+                sw.window.setFrameOrigin(NSPoint(x: screen.visibleFrame.minX, y: screen.visibleFrame.minY))
+                sw.window.close()
+                sw.show()
+                let frame = sw.window.frame
+                if frame.size != size || abs(frame.midX - screen.visibleFrame.midX) > 1
+                    || abs(frame.midY - screen.visibleFrame.midY) > 1 {
+                    failures.append("settings: reopen did not center the existing window size")
+                }
+            }
+            if sw.window.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) != .darkAqua {
+                failures.append("settings: window did not inherit Stella’s dark appearance")
+            }
+            if let split = sw.window.contentViewController?.children.compactMap({ $0 as? NSSplitViewController }).first,
+               let sidebar = split.splitViewItems.first, let toolbar = sw.window.toolbar {
+                for collapsed in [false, true, false] {
+                    sidebar.isCollapsed = collapsed
+                    sw.window.contentView?.layoutSubtreeIfNeeded()
+                    let panes = split.splitView.arrangedSubviews
+                    if !collapsed, panes.count == 2, abs(panes[0].frame.maxX - panes[1].frame.minX) > 0.01 {
+                        failures.append("settings: sidebar leaves a gap between panes")
+                    }
+                    let hasTrackingDivider = toolbar.items.contains { $0 is NSTrackingSeparatorToolbarItem }
+                    if hasTrackingDivider == collapsed ||
+                        (collapsed && toolbar.items.first?.label != String(localized: "Toggle Sidebar")) {
+                        failures.append("settings: toolbar layout did not follow sidebar collapse")
+                    }
+                }
+            } else { failures.append("settings: sidebar or toolbar missing") }
             menu.performActionForItem(at: menu.index(of: item))
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 if let about = app.windows.first(where: { $0.isVisible && $0.title == item.title }) {
-                    capture("about", SettingsWindowController.snapshot(about))
+                    capture("about-popup", SettingsWindowController.snapshot(about))
                     if about.styleMask.contains(.titled) || about.isOpaque || about.backgroundColor.alphaComponent != 0 {
                         failures.append("About Stella has an outer window surface")
                     }

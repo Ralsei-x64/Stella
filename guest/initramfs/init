@@ -104,9 +104,20 @@ msg "kernel cmdline: $CMDLINE"
 # ---------------------------------------------------------------- partitions
 # Partitions are found by GPT name (PARTLABEL) from sysfs, no udev needed:
 # /sys/class/block/<dev>/uevent carries PARTNAME= and PARTUUID=.
+# Raw passthrough may contain another SteamOS installation. When it is active,
+# only Stella's own block serials may supply boot partitions, layers, or payloads.
+RAW_DRIVES=$(getarg stella.raw)
+boot_role() { # sysfs whole disk, expected serial pattern
+    [ "$RAW_DRIVES" = 1 ] || return 0
+    case "$(cat "$1/serial" 2>/dev/null)" in $2) return 0;; *) return 1;; esac
+}
 part_field() { # part_field <PARTLABEL> <FIELD> -> value (first match)
     for _u in /sys/class/block/*/uevent; do
         if grep -qx "PARTNAME=$1" "$_u"; then
+            if [ "$RAW_DRIVES" = 1 ]; then
+                _parent=$(dirname "$(readlink -f "${_u%/uevent}")")
+                boot_role "$_parent" vda || continue
+            fi
             sed -n "s/^$2=//p" "$_u"
             return 0
         fi
@@ -229,6 +240,7 @@ find_payload() { # find_payload <first member> -> PAYLOAD_DEV: whole disk starti
     while [ $_i -lt 25 ]; do
         for _d in /sys/class/block/*; do
             grep -qx DEVTYPE=disk "$_d/uevent" 2>/dev/null || continue
+            boot_role "$_d" "vd[c-z]" || continue
             [ "$(dd if="/dev/${_d##*/}" bs=1 count=6 2>/dev/null)" = 070701 ] || continue
             [ "$(dd if="/dev/${_d##*/}" bs=1 skip=110 count=$((${#1} + 1)) 2>/dev/null | tr -d '\000')" = "$1" ] \
                 || continue
@@ -707,9 +719,11 @@ assemble_slot() {
         tr -d '\r' < "$_f" > "/run/steamac/partsets/$_set"
         # identical to _udev_rules() in the stock hook ("other" hidden from udisks)
         [ "$_set" = other ] && _ud=1 || _ud=0
+        _boot_match=
+        [ "$RAW_DRIVES" = 1 ] && _boot_match='ATTRS{serial}=="vda", '
         while read -r _name _uuid; do
             [ -n "$_uuid" ] || continue
-            echo "ENV{ID_PART_ENTRY_SCHEME}==\"gpt\", ENV{ID_PART_ENTRY_UUID}==\"$_uuid\", SYMLINK+=\"disk/by-partsets/$_set/$_name\", ENV{UDISKS_IGNORE}=\"$_ud\""
+            echo "${_boot_match}ENV{ID_PART_ENTRY_SCHEME}==\"gpt\", ENV{ID_PART_ENTRY_UUID}==\"$_uuid\", SYMLINK+=\"disk/by-partsets/$_set/$_name\", ENV{UDISKS_IGNORE}=\"$_ud\""
         done < "/run/steamac/partsets/$_set" > "/run/udev/rules.d/90-steamos-partsets-$_set.rules"
     done
     umount /efi
@@ -783,6 +797,7 @@ LAYER_DEV=$(getarg steamac.layer)
 if [ -z "$LAYER_DEV" ]; then
     for _d in /sys/class/block/*; do
         grep -qx DEVTYPE=disk "$_d/uevent" 2>/dev/null || continue
+        boot_role "$_d" vdb || continue
         # erofs superblock magic 0xE0F5E1E2 at byte 1024
         _m=$(dd if="/dev/${_d##*/}" bs=1024 skip=1 count=1 2>/dev/null | od -An -tx1 -N4 | tr -d ' \n')
         [ "$_m" = e2e1f5e0 ] && { LAYER_DEV=/dev/${_d##*/}; break; }

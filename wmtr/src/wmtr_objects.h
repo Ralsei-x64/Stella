@@ -11,9 +11,8 @@ static int object_checks(struct wmtr_host *h) {
 }
 /* Unlike the bounded client-handle cache, provenance must cover every live pool/+1 owner.
  * Losing an export when the table fills also loses its open-encoder bit (STEAMAC-6Z/70). */
-static void objects_grow(struct wmtr_host *h) {
-  uint32_t capacity = h->object_capacity * 2;
-  if (capacity <= h->object_capacity) return;
+static void objects_rehash(struct wmtr_host *h, uint32_t capacity) {
+  if (capacity < h->object_capacity) return;
   struct object_entry *entries = calloc(capacity, sizeof *entries);
   if (!entries) return; /* existing slots remain usable; a full-table encoder is ended below */
   for (uint32_t i = 0; i < h->object_capacity; i++) {
@@ -23,14 +22,22 @@ static void objects_grow(struct wmtr_host *h) {
     while (entries[slot].value) slot = (slot + 1) & (capacity - 1);
     entries[slot] = *e;
   }
-  LOG(0, "object registry grew %u -> %u slots (%u live owners); preserving encoder teardown tracking\n",
-      h->object_capacity, capacity, h->object_count);
+  if (capacity > h->object_capacity)
+    LOG(0, "object registry grew %u -> %u slots (%u live owners); preserving encoder teardown tracking\n",
+        h->object_capacity, capacity, h->object_count);
   free(h->objects);
   h->objects = entries;
   h->object_capacity = capacity;
+  h->object_used = h->object_count;
 }
 static struct object_entry *object_find(struct wmtr_host *h, uint64_t value, int insert) {
-  if (insert && h->object_count >= h->object_capacity - h->object_capacity / 4) objects_grow(h);
+  /* Empty slots terminate probes. A long session can fill the table with deleted slots
+   * even when very few objects are live. Compact on churn, grow on live demand. */
+  if (insert && h->object_used >= h->object_capacity - h->object_capacity / 4) {
+    uint32_t capacity = h->object_capacity;
+    if (h->object_count >= capacity / 2) capacity *= 2;
+    objects_rehash(h, capacity);
+  }
   uint32_t start = (uint32_t)((value >> 4) * 0x9e3779b1u) & (h->object_capacity - 1);
   struct object_entry *empty = NULL;
   for (uint32_t n = 0; n < h->object_capacity; n++) {
@@ -88,6 +95,7 @@ static int object_field(struct object_walk *w, obj_handle_t *field) {
       return 1;
     }
     if (e->value != value) {
+      if (!e->value) w->h->object_used++;
       w->h->object_count++;
       e->value = value; e->refs = e->pool_refs = 0; e->plain = w->call == 108;
       e->open_encoder = w->call == 30 || w->call == 31 || w->call == 32 || w->call == 129;

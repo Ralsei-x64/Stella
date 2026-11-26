@@ -8,6 +8,8 @@ enum GameLayerSelfTest {
     static func run() -> Never {
         let parent = CAMetalLayer()
         let game = CAMetalLayer(), other = CALayer()
+        game.frame = CGRect(x: 0, y: 0, width: 1280, height: 800)
+        game.drawableSize = CGSize(width: 2560, height: 1600)
         parent.addSublayer(game)
         parent.addSublayer(other)
         var failures = 0
@@ -21,6 +23,14 @@ enum GameLayerSelfTest {
         check(game.animationKeys()?.isEmpty ?? true, "visibility change animated")
         VMView.applyGameLayers(visible: true, in: parent)
         check(!game.isHidden, "game layer hidden while the game has focus")
+        let empty = CAMetalLayer()
+        empty.frame = game.frame
+        empty.drawableSize = .zero
+        parent.addSublayer(empty)
+        for visible in [false, true] {
+            VMView.applyGameLayers(visible: visible, in: parent)
+            check(empty.isHidden && game.isHidden == !visible, "empty replacement covers Steam or Titanfall")
+        }
         func mode(_ layer: CAMetalLayer) -> String? { layer.developerHUDProperties?["mode"] as? String }
         VMView.applyHUD(true, gameVisible: true, main: parent, mainAttached: true, injected: true)
         check(mode(game) == "default" && mode(parent) == "off", "HUD on with a game: not on the game layer only")
@@ -92,6 +102,20 @@ enum GameLayerSelfTest {
         var tracking: [Bool] = []
         view.onCursorTrackingChange = { tracking.append($0) }
         view.gameLayersVisible = true
+        let replacement = CAMetalLayer()
+        replacement.frame = view.bounds
+        replacement.drawableSize = .zero
+        view.metalLayer.addSublayer(replacement)
+        view.setValue(true, forKey: "gameLayersVisible")
+        check(view.activeGameLayer === overlayGame && replacement.isHidden, "empty layer takes cursor and game picture")
+        replacement.drawableSize = hd
+        view.streamLayerChanged(replacement, framebufferOnly: true)
+        check(view.activeGameLayer === replacement, "configured replacement never becomes visible")
+        // Core Animation retains the old drawableSize when zero is assigned after configuration.
+        replacement.frame = .zero
+        view.streamLayerChanged(replacement, framebufferOnly: true)
+        check(view.activeGameLayer === overlayGame, "collapsed replacement still owns the game picture")
+        replacement.removeFromSuperlayer()
         view.guestCursorImage(width: 2, height: 2, xhot: 0, yhot: 0, bgra: Data(repeating: 255, count: 16))
         view.guestCursorPosition(x: 960, y: 540, windowWidth: 1920, windowHeight: 1080)
         view.guestCursorVisibility(true)

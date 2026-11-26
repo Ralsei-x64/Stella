@@ -59,21 +59,19 @@ struct GamesTab: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
-        .onAppear {
-            recommendations.reset()
-            for game in games { recommendations.fetch(game.appid) }
-        }
-        .onChange(of: games.map(\.appid)) { _, ids in
-            for id in ids { recommendations.fetch(id) }
-        }
+        .onAppear { recommendations.reset() }
     }
 }
 
 private struct GameProfileRow: View {
     @EnvironmentObject var settings: LauncherSettings
     let game: GameStatsStore.Game
-    @ObservedObject var recommendations: GameRecommendations
-    @State private var editing = false
+    let recommendations: GameRecommendations
+    private struct EditorDraft: Identifiable {
+        let id = UUID()
+        let profile: GameProfile
+    }
+    @State private var editor: EditorDraft?
 
     var body: some View {
         let profile = settings.profile(for: game.appid)
@@ -82,14 +80,28 @@ private struct GameProfileRow: View {
             Label(matched?.name ?? String(localized: "Custom settings"), systemImage: "slider.horizontal.3")
                 .foregroundStyle(.secondary)
             Spacer()
-            Button("Compatibility…") { editing = true }
+            Toggle("Microphone", isOn: Binding(get: { profile.microphoneAllowed }, set: { allowed in
+                var updated = settings.profile(for: game.appid)
+                updated.microphoneAllowed = allowed
+                if GameProfile.validEnv(updated.env) {
+                    settings.setProfile(updated, for: game.appid)
+                } else {
+                    // Keep a full custom command intact and let the user resolve the length in the editor.
+                    editor = EditorDraft(profile: updated)
+                }
+            }))
+            .toggleStyle(.checkbox)
+            .fixedSize()
+            .help("Allow microphone access when this game launches. Game audio is unaffected.")
+            Button("Compatibility…") { editor = EditorDraft(profile: profile) }
                 .accessibilityIdentifier("compatibility-\(game.appid)")
         }
-        .sheet(isPresented: $editing) {
-            GameCompatibilityEditor(game: game, profile: profile, recommendations: recommendations)
+        .sheet(item: $editor) { draft in
+            GameCompatibilityEditor(game: game, profile: draft.profile, recommendations: recommendations)
                 .environmentObject(settings)
         }
     }
+
 }
 
 private struct GameStatsWhatIsSent: View {
@@ -128,6 +140,7 @@ private struct GameStatsRow: View {
             .fixedSize()
             Toggle("Share", isOn: Binding(get: { game.sharing }, set: { store.setSharing($0, for: game.appid) }))
                 .toggleStyle(.checkbox)
+                .fixedSize()
                 .help(sharingOn ? String(localized: "Send this game's sessions and rating")
                       : String(localized: "Turn on Share game statistics above to send anything"))
         }

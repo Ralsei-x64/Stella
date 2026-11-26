@@ -48,6 +48,8 @@
     <array>
         <string>_nvstream._tcp</string>
     </array>
+    <key>StellaDiscordApplicationID</key>
+    <string>1575258761285607464</string>
     <key>SteamacGameStatsURL</key>
     <string>https://steamac-game-stats.steamac-game-stats.workers.dev</string>
 </dict>

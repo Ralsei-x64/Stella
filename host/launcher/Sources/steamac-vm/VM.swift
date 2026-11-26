@@ -25,6 +25,8 @@ struct VMInputs {
 
 /// libkrun context: configuration (boot contract) and the VMM thread.
 final class VM {
+    private var rawDescriptors: [Int32] = []
+    deinit { for fd in rawDescriptors { close(fd) } }
     let ctx: UInt32
     private(set) var shutdownFd: Int32 = -1
     private(set) var running = false
@@ -126,7 +128,7 @@ final class VM {
         try krun("krun_set_kernel", krun_set_kernel(ctx, o.kernel, STEAMAC_KERNEL_FORMAT_RAW, o.initrd, o.cmdline))
 
         for (i, d) in o.disks.enumerated() {
-            let id = "vd" + String(UnicodeScalar(UInt8(97 + i)))
+            let id = d.serial ?? ("vd" + String(UnicodeScalar(UInt8(97 + i))))
             if !d.readOnly { try DiskLock.hold(d.path) }
             try krun("krun_add_disk2(\(d.path))", krun_add_disk2(ctx, id, d.path, STEAMAC_DISK_FORMAT_RAW, d.readOnly))
             log("disk \(id): \(d.path)\(d.readOnly ? " (ro)" : "")")
@@ -139,6 +141,27 @@ final class VM {
             try krun("krun_add_virtiofs4(\(share))",
                      krun_add_virtiofs4(ctx, Options.shareTag, share, 0, false, UInt32(KRUN_SEMANTICS_LINUX_SIMPLIFIED)))
             log("share: \(share) → virtio-fs tag \(Options.shareTag)")
+        }
+
+        for share in o.driveShares {
+            try krun("krun_add_virtiofs4(\(share.path))", krun_add_virtiofs4(ctx, share.tag, share.path, 0,
+                     share.readOnly, UInt32(KRUN_SEMANTICS_LINUX_SIMPLIFIED)))
+            log("drive: \(share.path) → \(share.tag)")
+        }
+        for drive in o.physicalDrives {
+            do {
+                let fd = try PhysicalDisk.openSelected(drive)
+                // Opening /dev/fd/N duplicates the authorized, exclusively held descriptor.
+                // libkrun opens its backing store when the VMM starts.
+                let result = krun_add_disk2(ctx, "raw-" + drive.token, "/dev/fd/\(fd)", STEAMAC_DISK_FORMAT_RAW, drive.readOnly)
+                if result < 0 { close(fd) }
+                try krun("krun_add_disk2(\(drive.name))", result)
+                rawDescriptors.append(fd)
+            } catch {
+                let message = "\(drive.name): \(error.localizedDescription)"
+                log("physical drive: " + message)
+                AdditionalDrive.skipped[drive.id] = error.localizedDescription
+            }
         }
 
         // virtio-snd → CoreAudio default output (and default input while the guest records).

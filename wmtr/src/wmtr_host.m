@@ -160,7 +160,7 @@ struct wmtr_host {
   struct wmtr_handle { _Atomic uint64_t id; _Atomic uint64_t obj; } *handles;
   pthread_mutex_t object_lock;
   struct object_entry *objects;
-  uint32_t object_capacity, object_count;
+  uint32_t object_capacity, object_count, object_used; /* used includes deleted slots */
   struct pool_state *pools;
 #ifdef WMTR_TESTING
   int strict_objects;

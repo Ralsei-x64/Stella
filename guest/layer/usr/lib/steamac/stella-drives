@@ -1,0 +1,84 @@
+#!/usr/bin/python3
+"""Mount the extra drives named by Stella. Only a new, individually marked image can be formatted."""
+from pathlib import Path
+import os
+import pwd
+import re
+import subprocess
+import sys
+import uuid
+
+ROOT = Path("/run/media/stella")
+
+
+def run(*args):
+    return subprocess.run(args, check=True)
+
+
+def disk_for_tag(tag):
+    devices = [p.parent.name for p in Path("/sys/class/block").glob("vd*/serial")
+               if p.read_text().strip() == tag]
+    if len(devices) != 1:
+        raise ValueError("missing or ambiguous disk serial " + tag)
+    return Path("/dev") / devices[0]
+
+
+def mount_image(device, identity, where):
+    marker = ("STELLA-EMPTY-1 " + identity + "\n").encode().ljust(512, b"\0")
+    with device.open("rb") as image:
+        blank = image.read(512) == marker
+    if blank:
+        # Consume the one-time ticket before mkfs. A broken or interrupted filesystem must
+        # never be interpreted as a request to erase a previously used disk.
+        with device.open("r+b", buffering=0) as image:
+            image.write(bytes(512))
+            os.fsync(image.fileno())
+        user = pwd.getpwnam("steamos")
+        run("mke2fs", "-q", "-t", "ext4", "-F", "-m", "0", "-U", identity,
+            "-L", where.name[:16], "-E", f"nodiscard,root_owner={user.pw_uid}:{user.pw_gid}", str(device))
+    probe = subprocess.check_output(["blkid", "-p", "-o", "export", device], text=True)
+    fields = dict(line.split("=", 1) for line in probe.splitlines() if "=" in line)
+    if fields.get("TYPE") != "ext4" or fields.get("UUID") != identity:
+        raise ValueError("unexpected filesystem or UUID on " + str(device))
+    run("mount", "-t", "ext4", "-o", "nodev,nosuid", str(device), str(where))
+
+
+def mount_record(record):
+    kind, identity, name = record.split(":")
+    if str(uuid.UUID(identity)) != identity or not re.fullmatch(r"[A-Za-z0-9-]{1,31}", name):
+        raise ValueError("invalid drive record")
+    tag = "st-" + identity.replace("-", "")[:16]
+    where = ROOT / name
+    where.mkdir(mode=0o755, exist_ok=True)
+    if where.is_symlink():
+        raise ValueError("invalid mount point")
+    if os.path.ismount(where):
+        return
+    try:
+        if kind == "i":
+            mount_image(disk_for_tag(tag), identity, where)
+        elif kind in ("f", "r"):
+            mode = "ro" if kind == "r" else "rw"
+            run("mount", "-t", "virtiofs", "-o", mode + ",nodev,nosuid", tag, str(where))
+        else:
+            raise ValueError("unknown drive type")
+    except Exception:
+        if not os.path.ismount(where):
+            where.rmdir()
+        raise
+
+
+def main():
+    ROOT.mkdir(mode=0o755, parents=True, exist_ok=True)
+    # The system owns this directory. Users can write only inside writable mounts.
+    for word in Path("/proc/cmdline").read_text().split():
+        if word.startswith("stella.drives="):
+            for record in word.split("=", 1)[1].split(","):
+                try:
+                    mount_record(record)
+                except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+                    print(f"Could not mount {record}: {error}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()

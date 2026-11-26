@@ -84,7 +84,7 @@ final class GameStatsStore: ObservableObject {
 
     /// Newest-played first.
     @Published private(set) var games: [Game] = []
-    /// Upload state for Settings > Games ("" = nothing to say).
+    /// Upload state for Settings > Compatibility ("" = nothing to say).
     @Published private(set) var status = ""
     /// Random per-installation id: distinct-install counts and rate limits on the service only.
     let install: String
@@ -321,7 +321,7 @@ final class GameStatsStore: ObservableObject {
     }
 
     /// Control FIFO `stats …`: state | flush | ask | press share|decline | dump PATH | reset-question |
-    /// rate APPID RATING|none | share APPID on|off (as the Settings > Games row's controls).
+    /// rate APPID RATING|none | share APPID on|off (as the Settings > Compatibility row's controls).
     func control(_ args: [String], tracker: GameSessionTracker?) {
         switch args.first {
         case "state":
@@ -393,13 +393,13 @@ final class GameStatsConsentPanel {
     }
 }
 
-/// What sharing sends and never sends (consent panel, Settings > Games "What Is Sent").
+/// What sharing sends and never sends (consent panel, Settings > Compatibility "What Is Sent").
 enum GameStatsText {
     static let summary = String(localized: "How your games run in SteamOS goes to the public game statistics, so every Mac player can see which games start and how fast they run on which Mac.")
     static let whatIsSent = [
         String(localized: "Each game session: the game's Steam app ID and name, how long it ran and was played, whether its window appeared, frame rate, memory use, Proton version, resolution, graphics path and sanitized graphics launch settings."),
         String(localized: "This Mac: model, chip, CPU and GPU cores, memory, macOS version; the VM's size, Vulkan driver and SteamOS build; the launcher version."),
-        String(localized: "Your rating of a game, if you set one in Settings > Games."),
+        String(localized: "Your rating of a game, if you set one in Settings > Compatibility."),
         String(localized: "A random install ID (not linked to you or to crash reports) to count Macs."),
         String(localized: "Never: your name, user or computer name, IP address, Steam account, files or other text you type."),
     ]
@@ -420,7 +420,7 @@ private struct GameStatsConsentView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                Text("Sessions already recorded on this Mac are included. You can rate games, turn sharing off for single games or altogether in Settings > Games.")
+                Text("Sessions already recorded on this Mac are included. You can rate games, turn sharing off for single games or altogether in Settings > Compatibility.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 HStack {
                     Link("Open Statistics Page", destination: GameStatsStore.pageURL).font(.caption)

@@ -1,5 +1,6 @@
 import AppKit
 import CKrun
+import Combine
 import Darwin
 import Foundation
 
@@ -507,6 +508,21 @@ do {
     gamePause.onChange = { stall.paused = $0 }
     // Game statistics (Settings > Games): one report per game run, frames counted while it has focus.
     let gameStats = GameSessionTracker(options: options, progress: progress) { [weak wc] in wc?.window }
+    let discord = DiscordPresence(applicationID: Bundle.main.object(forInfoDictionaryKey: "StellaDiscordApplicationID") as? String,
+                                repository: UpdateChecker.repositoryURL)
+    let discordSubscription = Publishers.CombineLatest3(settings.$discordPresence, gameStats.$sessionActivity, settings.$games)
+        .map { enabled, activity, games -> DiscordPresence.Activity? in
+            guard enabled, let activity else { return nil }
+            switch activity.location {
+            case .steamLibrary:
+                return DiscordPresence.Activity(title: "Steam Library", since: activity.since)
+            case .game(let appid):
+                guard let title = games.first(where: { $0.appid == appid })?.name else { return nil }
+                return DiscordPresence.Activity(title: title, since: activity.since, appid: appid)
+            }
+        }
+        .removeDuplicates()
+        .sink { discord.setActivity($0) }
     DebugControl.gameStats = gameStats
     gamePause.onConfirmedChange = { [weak wc] in wc?.gamePaused($0); gameStats.gamePaused($0) }
     // Settings > General "Share clipboard with SteamOS" (fx.clipboard).
@@ -570,7 +586,8 @@ do {
     settingsContext.requestInputMonitoring = {
         gamepad?.requestInputMonitoring()
     }
-    let settingsWindow = SettingsWindowController(context: settingsContext)
+    let settingsWindow = SettingsWindowController(context: settingsContext, sessionWindow: wc.window)
+    let overlayApps = Supervisor.runDir.map { FullscreenOverlayApps(window: wc.window, settings: settings, directory: $0) }
     lifecycle.settingsContext = settingsContext
     lifecycle.settingsWindow = settingsWindow
     wc.onOpenSettings = { settingsWindow.show() }
@@ -622,7 +639,7 @@ do {
     console.start()
     vm.start()
     withExtendedLifetime((presenter, gamepad, progressPort, battery, keyboardLayouts, supervisorWatch, perfSubscription, gamePause, suspender, clipboard,
-                          gameStats, streamCapture, streamInput, streamHost, streamPrompt, streamSubscription, streamStatusSubscription)) {
+                          gameStats, discordSubscription, overlayApps, streamCapture, streamInput, streamHost, streamPrompt, streamSubscription, streamStatusSubscription)) {
         app.run()
     }
 } catch let error as DiskLock.InUse {

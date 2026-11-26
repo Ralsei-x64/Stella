@@ -21,10 +21,10 @@ final class LauncherSettings: ObservableObject {
     enum Key: String, CaseIterable {
         // General
         case showOverlay, verboseOverlay, showStallIndicator, openFullscreen, perfStats, sendCrashReports, muteInBackground, pauseInBackground,
-             closeAction, checkForUpdates, followMacTime, followMacKeyboard, shareMacBattery, shareClipboard, shareConcealedClipboard, shareGameStats
+             closeAction, checkForUpdates, followMacTime, followMacKeyboard, shareMacBattery, shareClipboard, shareConcealedClipboard, shareGameStats, discordPresence
         // Display
         case dpiSource, fixedDPI, fixedWidthMM, fixedHeightMM, refreshRate, followWindowSize, windowWidth, windowHeight,
-             windowSizePreset, retinaResolution, metalHUD, superResolution
+             windowSizePreset, retinaResolution, metalHUD, superResolution, closeOverlayApps
         // Mouse
         case autoCaptureGames, gameNames, cursorSize
         // Controller
@@ -34,15 +34,15 @@ final class LauncherSettings: ObservableObject {
         // Streaming
         case streamingHost
         // Advanced
-        case cpus, memMiB, sshEnabled, sshPort, network, lanRemotePlay, diskImage, sharedFolder, sharedMount, sharedLibrary,
+        case cpus, memMiB, advancedMemory, advancedRAMMiB, advancedVRAMMiB, sshEnabled, sshPort, network, lanRemotePlay, diskImage, additionalDrives, sharedFolder, sharedMount, sharedLibrary,
              steamosBranch, steamClient, vulkanDriver, wmtr, wmtrLibrary
 
         var nextStart: Bool {
             switch self {
             case .openFullscreen, .dpiSource, .fixedDPI, .fixedWidthMM, .fixedHeightMM, .refreshRate,
-                 .windowWidth, .windowHeight, .windowSizePreset, .retinaResolution, .metalHUD, .cursorSize, .soundEnabled, .cpus, .memMiB, .sshEnabled,
+                 .windowWidth, .windowHeight, .windowSizePreset, .retinaResolution, .metalHUD, .cursorSize, .soundEnabled, .cpus, .memMiB, .advancedMemory, .advancedRAMMiB, .advancedVRAMMiB, .sshEnabled,
                  .sshPort, .network, .lanRemotePlay,
-                 .diskImage, .sharedFolder, .sharedMount, .sharedLibrary, .steamClient, .followMacTime, .vulkanDriver, .wmtr, .wmtrLibrary:
+                 .diskImage, .additionalDrives, .sharedFolder, .sharedMount, .sharedLibrary, .steamClient, .followMacTime, .vulkanDriver, .wmtr, .wmtrLibrary:
                 return true
             default:
                 return false
@@ -346,6 +346,7 @@ final class LauncherSettings: ObservableObject {
     @Published var followMacTime = true { didSet { save(.followMacTime, followMacTime) } }
     /// Desktop Mode's keyboard layouts follow the Mac's input sources (KeyboardLayoutSync); now.
     @Published var followMacKeyboard = true { didSet { save(.followMacKeyboard, followMacKeyboard) } }
+    @Published var discordPresence = true { didSet { save(.discordPresence, discordPresence) } }
     @Published var shareMacBattery = true { didSet { save(.shareMacBattery, shareMacBattery) } }
     // Display
     @Published var dpiSource = DPISource.auto { didSet { save(.dpiSource, dpiSource.rawValue) } }
@@ -365,6 +366,7 @@ final class LauncherSettings: ObservableObject {
     @Published var metalHUD = false { didSet { save(.metalHUD, metalHUD) } }
     /// MetalFX spatial upscaling of the guest picture to the window's pixel size (Renderer); applies now.
     @Published var superResolution = false { didSet { save(.superResolution, superResolution) } }
+    @Published var closeOverlayApps = false { didSet { save(.closeOverlayApps, closeOverlayApps) } }
     // Mouse
     @Published var cursorSize = CursorSize.small { didSet { save(.cursorSize, cursorSize.rawValue) } }
     @Published var autoCaptureGames = true { didSet { save(.autoCaptureGames, autoCaptureGames) } }
@@ -394,6 +396,35 @@ final class LauncherSettings: ObservableObject {
     /// 0 = automatic (VMSizing: this Mac's performance cores / half its RAM); the key is then absent.
     @Published var cpus = 0 { didSet { saveSize(.cpus, cpus) } }
     @Published var memMiB = 0 { didSet { saveSize(.memMiB, memMiB) } }
+
+    enum MemoryMode { case automatic, balanced, advanced }
+    @Published var advancedMemory = false { didSet { save(.advancedMemory, advancedMemory) } }
+    @Published var advancedRAMMiB = 0 { didSet { saveSize(.advancedRAMMiB, advancedRAMMiB) } }
+    @Published var advancedVRAMMiB = 0 { didSet { saveSize(.advancedVRAMMiB, advancedVRAMMiB) } }
+
+    var balancedRAMMiB: Int { memMiB > 0 ? memMiB : VMSizing.autoMemMiB(.current) }
+    var guestRAMMiB: Int {
+        advancedMemory && advancedRAMMiB > 0 ? advancedRAMMiB : balancedRAMMiB
+    }
+    func graphicsBudgetMiB(for ram: Int) -> Int {
+        guard advancedMemory && advancedVRAMMiB > 0 else { return VMSizing.gpuBudgetMiB(memMiB: ram) }
+        return advancedVRAMMiB
+    }
+    var memoryMode: MemoryMode {
+        get { advancedMemory ? .advanced : (memMiB > 0 ? .balanced : .automatic) }
+        set {
+            switch newValue {
+            case .automatic: advancedMemory = false; memMiB = 0
+            case .balanced:
+                if memMiB <= 0 { memMiB = VMSizing.autoMemMiB(.current) }
+                advancedMemory = false
+            case .advanced:
+                if advancedRAMMiB <= 0 { advancedRAMMiB = balancedRAMMiB }
+                if advancedVRAMMiB <= 0 { advancedVRAMMiB = VMSizing.gpuBudgetMiB(memMiB: advancedRAMMiB) }
+                advancedMemory = true
+            }
+        }
+    }
     /// SSH into the guest (gvproxy forward + guest sshd; `steamac.ssh=0|1`). Off by default in
     /// release bundles (Info.plist SteamacReleaseDefaults), on for the dev launcher.
     @Published var sshEnabled = !AppBundle.releaseDefaults { didSet { save(.sshEnabled, sshEnabled) } }
@@ -404,6 +435,11 @@ final class LauncherSettings: ObservableObject {
     /// Opt-in Moonlight host; only the windowed VM process opens its listeners.
     @Published var streamingHost = false { didSet { save(.streamingHost, streamingHost) } }
     /// "" = default (see AppBundle.defaultDisk()).
+    @Published var additionalDrives: [AdditionalDrive] = [] {
+        didSet {
+            if let data = try? JSONEncoder().encode(additionalDrives) { save(.additionalDrives, data) }
+        }
+    }
     @Published var diskImage = "" { didSet { save(.diskImage, diskImage) } }
     /// Mac folder exposed to the guest as the virtio-fs device "macshare" (Options.share); "" = none.
     @Published var sharedFolder = "" { didSet { save(.sharedFolder, sharedFolder) } }
@@ -467,6 +503,7 @@ final class LauncherSettings: ObservableObject {
         bool(.shareGameStats, &shareGameStats)
         bool(.followMacTime, &followMacTime)
         bool(.followMacKeyboard, &followMacKeyboard)
+        bool(.discordPresence, &discordPresence)
         bool(.shareMacBattery, &shareMacBattery)
         if let s = d.string(forKey: Key.dpiSource.rawValue).flatMap(DPISource.init(rawValue:)) { dpiSource = s }
         int(.fixedDPI, &fixedDPI)
@@ -486,6 +523,7 @@ final class LauncherSettings: ObservableObject {
         bool(.retinaResolution, &retinaResolution)
         bool(.metalHUD, &metalHUD)
         bool(.superResolution, &superResolution)
+        bool(.closeOverlayApps, &closeOverlayApps)
         if let size = d.string(forKey: Key.cursorSize.rawValue).flatMap(CursorSize.init(rawValue:)) { cursorSize = size }
         bool(.autoCaptureGames, &autoCaptureGames)
         bool(.virtualPad, &virtualPad)
@@ -501,12 +539,19 @@ final class LauncherSettings: ObservableObject {
         bool(.soundMute, &soundMute)
         if let s = d.string(forKey: Key.soundLatency.rawValue).flatMap(Latency.init(rawValue:)) { soundLatency = s }
         int(.cpus, &cpus)
-        int(.memMiB, &memMiB)
+        if let n = d.object(forKey: Key.memMiB.rawValue) as? Int, VMSizing.manualRAMMiB.contains(n) { memMiB = n }
+        bool(.advancedMemory, &advancedMemory)
+        if let n = d.object(forKey: Key.advancedRAMMiB.rawValue) as? Int, VMSizing.manualRAMMiB.contains(n) { advancedRAMMiB = n }
+        if let n = d.object(forKey: Key.advancedVRAMMiB.rawValue) as? Int, VMSizing.manualVRAMMiB.contains(n) { advancedVRAMMiB = n }
         bool(.sshEnabled, &sshEnabled)
         int(.sshPort, &sshPort)
         bool(.network, &network)
         bool(.lanRemotePlay, &lanRemotePlay)
         bool(.streamingHost, &streamingHost)
+        if let data = d.data(forKey: Key.additionalDrives.rawValue) {
+            do { additionalDrives = try JSONDecoder().decode([AdditionalDrive].self, from: data) }
+            catch { log("settings: cannot read additional drives: \(error)") }
+        }
         string(.diskImage, &diskImage)
         string(.sharedFolder, &sharedFolder)
         string(.sharedMount, &sharedMount)
@@ -559,6 +604,7 @@ final class LauncherSettings: ObservableObject {
         case .shareGameStats: guard let b else { return false }; shareGameStats = b
         case .followMacTime: guard let b else { return false }; followMacTime = b
         case .followMacKeyboard: guard let b else { return false }; followMacKeyboard = b
+        case .discordPresence: guard let b else { return false }; discordPresence = b
         case .shareMacBattery: guard let b else { return false }; shareMacBattery = b
         case .dpiSource: guard let v = DPISource(rawValue: text) else { return false }; dpiSource = v
         case .fixedDPI: guard let i else { return false }; fixedDPI = i
@@ -575,6 +621,7 @@ final class LauncherSettings: ObservableObject {
         case .retinaResolution: guard let b else { return false }; retinaResolution = b
         case .metalHUD: guard let b else { return false }; metalHUD = b
         case .superResolution: guard let b else { return false }; superResolution = b
+        case .closeOverlayApps: guard let b else { return false }; closeOverlayApps = b
         case .cursorSize: guard let size = CursorSize(rawValue: text) else { return false }; cursorSize = size
         case .autoCaptureGames: guard let b else { return false }; autoCaptureGames = b
         case .gameNames: return false
@@ -591,12 +638,16 @@ final class LauncherSettings: ObservableObject {
         case .soundMute: guard let b else { return false }; soundMute = b
         case .soundLatency: guard let v = Latency(rawValue: text) else { return false }; soundLatency = v
         case .cpus: guard let n = text == "auto" ? 0 : i, n >= 0 else { return false }; cpus = n
-        case .memMiB: guard let n = text == "auto" ? 0 : i, n >= 0 else { return false }; memMiB = n
+        case .memMiB: guard let n = text == "auto" ? 0 : i, n == 0 || VMSizing.manualRAMMiB.contains(n) else { return false }; memMiB = n
+        case .advancedMemory: guard let b else { return false }; if b { memoryMode = .advanced } else { advancedMemory = false }
+        case .advancedRAMMiB: guard let i, VMSizing.manualRAMMiB.contains(i) else { return false }; advancedRAMMiB = i
+        case .advancedVRAMMiB: guard let i, VMSizing.manualVRAMMiB.contains(i) else { return false }; advancedVRAMMiB = i
         case .sshEnabled: guard let b else { return false }; sshEnabled = b
         case .sshPort: guard let i else { return false }; sshPort = i
         case .network: guard let b else { return false }; network = b
         case .lanRemotePlay: guard let b else { return false }; lanRemotePlay = b
         case .streamingHost: guard let b else { return false }; streamingHost = b
+        case .additionalDrives: return false // edited as a collection in Manage Drives
         case .diskImage: diskImage = text == "default" ? "" : text
         case .sharedFolder: sharedFolder = text == "none" ? "" : text
         case .sharedMount: guard Options.isValidShareMount(text) else { return false }; sharedMount = text
@@ -610,10 +661,10 @@ final class LauncherSettings: ObservableObject {
         return true
     }
 
-    /// Restore every preference to its default (per-game entries included).
+    /// Reset preferences and per-game entries. Keep the storage inventory so users can still manage their disks.
     func resetAll() {
         for k in defaults.dictionaryRepresentation().keys
-        where Key(rawValue: k) != nil || k.hasPrefix("autoCapture.") || k.hasPrefix("profile.") || k.hasPrefix(Self.presetPrefix) {
+        where (Key(rawValue: k) != nil && k != Key.additionalDrives.rawValue) || k.hasPrefix("autoCapture.") || k.hasPrefix("profile.") || k.hasPrefix(Self.presetPrefix) {
             defaults.removeObject(forKey: k)
         }
         savedPresets = [:]
@@ -626,18 +677,21 @@ final class LauncherSettings: ObservableObject {
         shareClipboard = fresh.shareClipboard; shareConcealedClipboard = fresh.shareConcealedClipboard
         closeAction = fresh.closeAction; checkForUpdates = fresh.checkForUpdates; shareGameStats = fresh.shareGameStats
         followMacTime = fresh.followMacTime; followMacKeyboard = fresh.followMacKeyboard
+        discordPresence = fresh.discordPresence
         shareMacBattery = fresh.shareMacBattery
         dpiSource = fresh.dpiSource; fixedDPI = fresh.fixedDPI; fixedWidthMM = fresh.fixedWidthMM
         fixedHeightMM = fresh.fixedHeightMM; refreshRate = fresh.refreshRate; followWindowSize = fresh.followWindowSize
         windowWidth = fresh.windowWidth; windowHeight = fresh.windowHeight; windowSizePreset = fresh.windowSizePreset
         retinaResolution = fresh.retinaResolution
         metalHUD = fresh.metalHUD; superResolution = fresh.superResolution
+        closeOverlayApps = fresh.closeOverlayApps
         cursorSize = fresh.cursorSize
         autoCaptureGames = fresh.autoCaptureGames
         virtualPad = fresh.virtualPad; padType = fresh.padType; dualSensePassthrough = fresh.dualSensePassthrough
         controllerID = fresh.controllerID; additionalPads = fresh.additionalPads; swapABXY = fresh.swapABXY
         stickDeadzone = fresh.stickDeadzone; soundEnabled = fresh.soundEnabled; soundOutputUID = fresh.soundOutputUID
         soundVolume = fresh.soundVolume; soundMute = fresh.soundMute; soundLatency = fresh.soundLatency
+        advancedMemory = fresh.advancedMemory; advancedRAMMiB = fresh.advancedRAMMiB; advancedVRAMMiB = fresh.advancedVRAMMiB
         cpus = fresh.cpus; memMiB = fresh.memMiB; sshEnabled = fresh.sshEnabled; sshPort = fresh.sshPort; network = fresh.network
         lanRemotePlay = fresh.lanRemotePlay
         streamingHost = fresh.streamingHost
@@ -674,8 +728,11 @@ final class LauncherSettings: ObservableObject {
             .fixedWidthMM: dpiSource == .mm ? fixedWidthMM : 0, .fixedHeightMM: dpiSource == .mm ? fixedHeightMM : 0,
             .refreshRate: refreshRate, .windowWidth: windowWidth, .windowHeight: windowHeight,
             .windowSizePreset: windowSizePreset, .retinaResolution: retinaResolution, .metalHUD: metalHUD,
-            .cursorSize: cursorSize.rawValue, .soundEnabled: soundEnabled, .cpus: cpus, .memMiB: memMiB, .sshEnabled: sshEnabled, .sshPort: sshPort,
+            .cursorSize: cursorSize.rawValue, .soundEnabled: soundEnabled, .cpus: cpus, .memMiB: advancedMemory ? 0 : memMiB,
+            .advancedMemory: advancedMemory, .advancedRAMMiB: advancedMemory ? guestRAMMiB : 0,
+            .advancedVRAMMiB: advancedMemory ? graphicsBudgetMiB(for: guestRAMMiB) : 0, .sshEnabled: sshEnabled, .sshPort: sshPort,
             .network: network, .lanRemotePlay: lanRemotePlay,
+            .additionalDrives: additionalDrives.map { "\($0.uuid)/\($0.enabled)/\($0.readOnly)" }.joined(separator: ","),
             .diskImage: diskImage, .sharedFolder: sharedFolder, .sharedMount: sharedMount, .sharedLibrary: sharedLibrary,
             .steamClient: steamClient.rawValue, .followMacTime: followMacTime,
             .vulkanDriver: vulkanDriver.rawValue, .wmtr: wmtr, .wmtrLibrary: wmtrLibrary,

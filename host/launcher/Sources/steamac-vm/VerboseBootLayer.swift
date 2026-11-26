@@ -47,22 +47,22 @@ final class VerboseBootLayer: CALayer {
 
     override func draw(in ctx: CGContext) {
         guard k > 0 else { return }
-        let size = max(10, 18 * k)
-        let font = StellaBrand.monoRegular(size: size)
-        let headingFont = StellaBrand.monoMedium(size: size)
+        let font = StellaBrand.monoRegular(size: max(8, 14 * k))
+        let headingFont = StellaBrand.monoMedium(size: max(10, 18 * k))
         let attributes: [NSAttributedString.Key: Any] = [.font: headingFont, .foregroundColor: NSColor.white]
         let inset = 40 * k
         let width = bounds.width - 2 * inset
-        let lineHeight = max(24 * k, CTFontGetAscent(font) + CTFontGetDescent(font))
+        let headingHeight = max(24 * k, CTFontGetAscent(headingFont) + CTFontGetDescent(headingFont))
+        let lineHeight = max(20 * k, CTFontGetAscent(font) + CTFontGetDescent(font))
         let rowGap = 5 * k
         let step = lineHeight + rowGap
         let top = bounds.height - 79 * k
-        let logTop = top - lineHeight - 10 * k
+        let logTop = top - headingHeight - 10 * k
         let firstBaseline = logTop - (lineHeight + CTFontGetAscent(font) - CTFontGetDescent(font)) / 2
         let capacity = max(0, Int((logTop - inset + rowGap) / step))
         guard width > 1 else { return }
         ctx.textMatrix = .identity
-        ctx.textPosition = CGPoint(x: inset, y: top - (lineHeight + CTFontGetAscent(headingFont) - CTFontGetDescent(headingFont)) / 2)
+        ctx.textPosition = CGPoint(x: inset, y: top - (headingHeight + CTFontGetAscent(headingFont) - CTFontGetDescent(headingFont)) / 2)
         CTLineDraw(CTLineCreateWithAttributedString(NSAttributedString(string: heading, attributes: attributes)), ctx)
         var rows: [CTLine] = []
         for message in lines().reversed() {

@@ -246,11 +246,12 @@ enum AppBundle {
     @MainActor
     static func alertIfLaunchedFromFinder(_ title: LocalizedStringResource, _ message: String) {
         guard resources != nil && (getppid() == 1 || Supervisor.isChild) else { return }
+        let app = SteamacApplication.shared
         let alert = NSAlert()
         alert.messageText = String(localized: title)
         alert.informativeText = message
-        NSApplication.shared.setActivationPolicy(.regular)
-        NSApp.activate()
+        app.setActivationPolicy(.regular)
+        app.activate()
         alert.runModal()
     }
 }
@@ -260,7 +261,7 @@ enum AppBundle {
 /// Advanced "Disk image"); the supervisor then boots it.
 enum FirstRun {
     static func run(settings: LauncherSettings) -> Never {
-        let app = NSApplication.shared
+        let app = SteamacApplication.shared
         log("first run: no usable disk image (\(settings.diskImage.isEmpty ? "none found" : settings.diskImage)); asking the user")
         app.setActivationPolicy(.regular)
         MainMenu.installMinimal()

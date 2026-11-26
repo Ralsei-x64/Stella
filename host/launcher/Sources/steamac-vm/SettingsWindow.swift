@@ -107,10 +107,10 @@ final class DiskCompactAlert: NSObject {
     }
 }
 
-/// App menu "Stella → Settings…" (Cmd+,): toolbar-style tabs, one SwiftUI form each.
-final class SettingsWindowController: NSObject, NSWindowDelegate {
+/// App menu "Stella → Settings…" (Cmd+,). The sidebar and control FIFO share the same selection.
+final class SettingsWindowController: NSObject, NSToolbarDelegate, NSMenuItemValidation {
     enum Tab: Int, CaseIterable {
-        case general, display, mouse, controller, sound, streaming, games, advanced
+        case general, display, mouse, controller, sound, streaming, games, advanced, about
 
         var name: String {
             switch self {
@@ -122,6 +122,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             case .streaming: return "streaming"
             case .games: return "games"
             case .advanced: return "advanced"
+            case .about: return "about"
             }
         }
 
@@ -133,8 +134,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             case .controller: return String(localized: "Controller")
             case .sound: return String(localized: "Sound")
             case .streaming: return String(localized: "Streaming")
-            case .games: return String(localized: "Games", comment: "Settings tab: game statistics")
+            case .games: return String(localized: "Compatibility")
             case .advanced: return String(localized: "Advanced")
+            case .about: return String(localized: "About Stella")
             }
         }
 
@@ -145,88 +147,206 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             case .mouse: return "computermouse"
             case .controller: return "gamecontroller"
             case .sound: return "speaker.wave.2"
-            case .streaming: return "antenna.radiowaves.left.and.right"
-            case .games: return "chart.bar.xaxis"
-            case .advanced: return "slider.horizontal.3"
-            }
-        }
-
-        /// Fixed content height per tab (grouped forms scroll beyond it).
-        var height: CGFloat {
-            switch self {
-            case .general: return 830
-            case .display: return 600
-            case .mouse: return 470
-            case .controller: return 620
-            case .sound: return 440
-            case .streaming: return 560
-            case .games: return 620
-            case .advanced: return 720
+            case .streaming: return "wifi"
+            case .games: return "checkmark.circle"
+            case .advanced: return "exclamationmark.triangle"
+            case .about: return "info"
             }
         }
     }
 
-    static let width: CGFloat = 600
+    fileprivate final class Navigation: ObservableObject {
+        @Published var selection: Tab = .general
+    }
+
     let window: NSWindow
-    private let tabs: SettingsTabController
     let context: SettingsContext
-    private var subscriptions: [AnyCancellable] = []
+    private weak var sessionWindow: NSWindow?
+    private let navigation = Navigation()
+    private let split = NSSplitViewController()
+    private var sidebarObservation: NSKeyValueObservation?
+    private static let sidebarToggle = NSToolbarItem.Identifier("StellaSettingsSidebar")
+    private static let sidebarDivider = NSToolbarItem.Identifier("StellaSettingsDivider")
+    private static let more = NSToolbarItem.Identifier("StellaSettingsActions")
 
-    init(context: SettingsContext) {
+    init(context: SettingsContext, sessionWindow: NSWindow? = nil) {
         self.context = context
-        tabs = SettingsTabController()
-        tabs.tabStyle = .toolbar
-        for tab in Tab.allCases {
-            let root = SettingsTabRoot(tab: tab).environmentObject(context).environmentObject(context.settings)
-            let host = NSHostingController(rootView: AnyView(root))
-            host.sizingOptions = []
-            host.view.frame = NSRect(x: 0, y: 0, width: SettingsWindowController.width, height: tab.height)
-            host.title = tab.title
-            let item = NSTabViewItem(viewController: host)
-            item.label = tab.title
-            item.image = NSImage(systemSymbolName: tab.symbol, accessibilityDescription: tab.title)
-            tabs.addTabViewItem(item)
+        self.sessionWindow = sessionWindow
+        let sidebar = NSHostingController(rootView: SettingsSidebar(navigation: navigation))
+        sidebar.sizingOptions = []
+        let sidebarItem = NSSplitViewItem(viewController: sidebar)
+        sidebarItem.canCollapse = true
+        sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView
+        sidebarItem.minimumThickness = 180
+        sidebarItem.maximumThickness = 320
+        sidebarItem.preferredThicknessFraction = 0.25
+        sidebarItem.titlebarSeparatorStyle = .none
+        let detail = NSHostingController(rootView: SettingsTabRoot(navigation: navigation)
+            .environmentObject(context).environmentObject(context.settings))
+        detail.sizingOptions = []
+        let detailItem = NSSplitViewItem(viewController: detail)
+        detailItem.minimumThickness = 450
+        detailItem.titlebarSeparatorStyle = .none
+        split.splitView = SettingsSplitView()
+        split.splitView.isVertical = true
+        split.splitView.dividerStyle = .thin
+        split.addSplitViewItem(sidebarItem)
+        split.addSplitViewItem(detailItem)
+
+        // Both panes, including the moving seam, share one uninterrupted backdrop.
+        let initialFrame = NSRect(x: 0, y: 0, width: 1000, height: 730)
+        let surface = NSVisualEffectView(frame: initialFrame)
+        surface.material = .underWindowBackground
+        surface.blendingMode = .behindWindow
+        let root = NSViewController()
+        root.view = surface
+        root.addChild(split)
+        for view in [split.view, SettingsEdgeView()] {
+            view.frame = surface.bounds
+            view.autoresizingMask = [.width, .height]
+            surface.addSubview(view)
         }
-        window = NSWindow(contentViewController: tabs)
-        window.styleMask = [.titled, .closable, .miniaturizable]
-        window.toolbarStyle = .preference
-        window.isReleasedWhenClosed = false
-        window.setFrameAutosaveName("FXSettings")
+        window = NSWindow(contentRect: initialFrame,
+                          styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                          backing: .buffered, defer: false)
         super.init()
-        window.delegate = self
-        tabs.didSelect = { [weak self] tab in self?.fit(tab) }
-        for changes in [context.$needsInputMonitoring.map { _ in () }.eraseToAnyPublisher(),
-                        context.settings.$virtualPad.map { _ in () }.eraseToAnyPublisher(),
-                        context.settings.$padType.map { _ in () }.eraseToAnyPublisher()] {
-            subscriptions.append(changes.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] in
-                guard let self, self.tabs.selectedTabViewItemIndex == Tab.controller.rawValue else { return }
-                self.fit(.controller)
-            })
+        window.contentViewController = root
+        surface.widthAnchor.constraint(lessThanOrEqualToConstant: initialFrame.width).isActive = true
+        window.isReleasedWhenClosed = false
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.title = String(localized: "Stella Settings")
+        window.titleVisibility = .hidden
+        window.toolbarStyle = .unified
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.collectionBehavior = [.auxiliary, .fullScreenAuxiliary, .moveToActiveSpace]
+        if let sessionWindow {
+            let center = NotificationCenter.default
+            center.addObserver(self, selector: #selector(sessionEnteredFullscreen),
+                               name: NSWindow.didEnterFullScreenNotification, object: sessionWindow)
+            center.addObserver(self, selector: #selector(detachFromSession),
+                               name: NSWindow.willExitFullScreenNotification, object: sessionWindow)
+            center.addObserver(self, selector: #selector(detachFromSession),
+                               name: NSWindow.willCloseNotification, object: window)
         }
-        fit(.general)
+        let toolbar = NSToolbar(identifier: "StellaSettingsToolbar")
+        toolbar.delegate = self
+        toolbar.displayMode = .iconOnly
+        window.toolbar = toolbar
+        sidebarObservation = sidebarItem.observe(\.isCollapsed, options: [.new]) { [weak self] item, _ in
+            self?.layoutSidebarTools(collapsed: item.isCollapsed)
+        }
+        window.minSize = NSSize(width: 680, height: 450)
+        window.maxSize.width = initialFrame.width
+        window.setFrame(initialFrame, display: false)
+        // Start existing installs at the compact default. Subsequent opens retain the user's size.
+        window.setFrameAutosaveName("StellaCompactSettingsPanel")
+        split.view.layoutSubtreeIfNeeded()
+        split.splitView.setPosition(min(250, window.frame.width * 0.25), ofDividerAt: 0)
     }
 
-    private func fit(_ tab: Tab) {
-        let height = tab == .controller && context.showsInputMonitoringWarning ? 700 : tab.height
-        let size = NSSize(width: SettingsWindowController.width, height: height)
-        let frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
-        var f = window.frame
-        f.origin.y += f.height - frame.height
-        f.size = frame.size
-        window.setFrame(f, display: true, animate: window.isVisible)
-        window.title = tab.title
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [.flexibleSpace, Self.sidebarToggle, Self.sidebarDivider, .flexibleSpace, Self.more]
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarDefaultItemIdentifiers(toolbar)
+    }
+
+    private func layoutSidebarTools(collapsed: Bool) {
+        guard let toolbar = window.toolbar else { return }
+        let divider = toolbar.items.firstIndex { $0.itemIdentifier == Self.sidebarDivider }
+        if collapsed, let divider {
+            toolbar.removeItem(at: divider)
+            if toolbar.items.first?.itemIdentifier == .flexibleSpace { toolbar.removeItem(at: 0) }
+        } else if !collapsed, divider == nil {
+            toolbar.insertItem(withItemIdentifier: .flexibleSpace, at: 0)
+            toolbar.insertItem(withItemIdentifier: Self.sidebarDivider, at: 2)
+        }
+    }
+
+    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
+                 willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if identifier == Self.sidebarToggle {
+            let item = NSToolbarItem(itemIdentifier: identifier)
+            item.label = String(localized: "Toggle Sidebar")
+            item.toolTip = item.label
+            item.image = NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: item.label)
+            item.target = self
+            item.action = #selector(toggleSidebar)
+            return item
+        }
+        if identifier == Self.sidebarDivider {
+            return NSTrackingSeparatorToolbarItem(identifier: identifier, splitView: split.splitView, dividerIndex: 0)
+        }
+        guard identifier == Self.more else { return nil }
+        let item = NSMenuToolbarItem(itemIdentifier: identifier)
+        item.label = String(localized: "More Options")
+        item.toolTip = item.label
+        item.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: item.label)
+        item.showsIndicator = false
+        for (title, action) in [(String(localized: "Check for Updates…"), #selector(checkForUpdates)),
+                                (String(localized: "Report a Problem…"), #selector(reportProblem))] {
+            item.menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = self
+        }
+        return item
+    }
+
+    @objc private func toggleSidebar() {
+        let sidebar = split.splitViewItems[0]
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            sidebar.isCollapsed.toggle()
+        } else {
+            sidebar.animator().isCollapsed = !sidebar.isCollapsed
+        }
+    }
+
+    @objc private func checkForUpdates() { UpdateChecker.shared.menuAction() }
+    @objc private func reportProblem() { context.reportProblem?() }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        menuItem.action != #selector(reportProblem) || context.reportProblem != nil
     }
 
     func show(tab: Tab? = nil) {
         if let tab { select(tab) }
-        if !window.isVisible { window.center() }
+        if !window.isVisible || window.isMiniaturized {
+            if let screen = sessionWindow?.screen ?? WindowController.targetScreen() { center(on: screen) }
+        }
+        attachToFullscreenSession()
+        if window.isMiniaturized { window.deminiaturize(nil) }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }
 
+    @objc private func sessionEnteredFullscreen() {
+        guard window.isVisible, !window.isMiniaturized else { return }
+        attachToFullscreenSession()
+        if NSApp.isActive { window.makeKeyAndOrderFront(nil) }
+    }
+
+    private func attachToFullscreenSession() {
+        guard let sessionWindow, sessionWindow.styleMask.contains(.fullScreen),
+              !window.styleMask.contains(.fullScreen), window.parent !== sessionWindow else { return }
+        if let screen = sessionWindow.screen, window.screen !== screen { center(on: screen) }
+        sessionWindow.addChildWindow(window, ordered: .above)
+    }
+
+    private func center(on screen: NSScreen) {
+        let area = screen.visibleFrame
+        let width = min(window.frame.width, window.maxSize.width, area.width)
+        let height = min(window.frame.height, area.height)
+        window.setFrame(NSRect(x: (area.midX - width / 2).rounded(), y: (area.midY - height / 2).rounded(),
+                               width: width, height: height), display: false)
+    }
+
+    @objc private func detachFromSession() {
+        if let sessionWindow, window.parent === sessionWindow { sessionWindow.removeChildWindow(window) }
+    }
+
     func select(_ tab: Tab) {
-        tabs.selectedTabViewItemIndex = tab.rawValue
-        fit(tab)
+        if navigation.selection != tab { navigation.selection = tab }
     }
 
     /// The window as drawn (title bar + toolbar + content) at the screen's backing scale, for
@@ -248,25 +368,54 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 }
 
-private final class SettingsTabController: NSTabViewController {
-    var didSelect: ((SettingsWindowController.Tab) -> Void)?
+private final class SettingsSplitView: NSSplitView {
+    override var dividerThickness: CGFloat { 0 }
+    override func drawDivider(in rect: NSRect) {}
+}
 
-    override func tabView(_ tabView: NSTabView, didSelect item: NSTabViewItem?) {
-        super.tabView(tabView, didSelect: item)
-        if let item, let tab = SettingsWindowController.Tab(rawValue: tabView.indexOfTabViewItem(item)) { didSelect?(tab) }
+private struct SettingsSidebar: View {
+    @ObservedObject var navigation: SettingsWindowController.Navigation
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.appearsActive) private var appearsActive
+
+    var body: some View {
+        List(selection: $navigation.selection) {
+            ForEach(SettingsWindowController.Tab.allCases, id: \.self) { tab in
+                row(tab.title, symbol: tab.symbol, selected: tab == navigation.selection).tag(tab)
+            }
+        }
+        .listStyle(.sidebar)
+        .environment(\.defaultMinListRowHeight, 35)
+        .contentMargins(.top, 0, for: .scrollContent)
+        .scrollContentBackground(.hidden)
+        .background {
+            (scheme == .dark ? Color(white: 0.03) : Color(nsColor: .controlBackgroundColor))
+                .opacity(0.90).ignoresSafeArea()
+        }
+        .accessibilityLabel(Text("Stella Settings"))
+    }
+
+    private func row(_ title: String, symbol: String, selected: Bool = false) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: symbol).font(.system(size: 14, weight: selected ? .semibold : .regular))
+                .foregroundStyle(Color(nsColor: selected && appearsActive ? .alternateSelectedControlTextColor : .systemBlue))
+                .frame(width: 23)
+                .accessibilityHidden(true)
+            Text(verbatim: title).font(.system(size: 13, weight: selected ? .medium : .regular))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 }
 
-// MARK: - shared bits
-
 private struct SettingsTabRoot: View {
-    let tab: SettingsWindowController.Tab
-    @EnvironmentObject var settings: LauncherSettings
+    @ObservedObject var navigation: SettingsWindowController.Navigation
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
             Group {
-                switch tab {
+                switch navigation.selection {
                 case .general: GeneralTab()
                 case .display: DisplayTab()
                 case .mouse: MouseTab()
@@ -275,12 +424,197 @@ private struct SettingsTabRoot: View {
                 case .streaming: StreamingTab()
                 case .games: GamesTab()
                 case .advanced: AdvancedTab()
+                case .about: SettingsAboutTab()
                 }
             }
-            .formStyle(.grouped)
+            .formStyle(SettingsFormStyle())
+            .labeledContentStyle(SettingsLabeledContentStyle())
+            .toggleStyle(SettingsSwitchStyle())
             RestartBar()
         }
-        .frame(width: SettingsWindowController.width, height: tab.height)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            Group {
+                if colorScheme == .dark {
+                    LinearGradient(colors: [Color(white: 0.055), Color(white: 0.09)],
+                                   startPoint: .top, endPoint: .bottom).opacity(0.86)
+                } else {
+                    Color(nsColor: .windowBackgroundColor).opacity(0.86)
+                }
+            }.ignoresSafeArea()
+        }
+    }
+}
+
+private struct SettingsAboutTab: View {
+    var body: some View {
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 25) {
+                    VStack(spacing: 15) {
+                        if let logo = StellaBrand.onDark {
+                            // The vector includes the half-stroke outside the 216 × 28 design bounds.
+                            Image(nsImage: logo).resizable().scaledToFit().frame(width: 219.33, height: 31.33)
+                                .frame(height: 28)
+                                .accessibilityLabel(Text(verbatim: "Stella"))
+                                .accessibilityAddTraits(.isHeader)
+                        }
+                        Text("Version \(UpdateChecker.currentVersion)")
+                            .font(Font(StellaBrand.monoRegular(size: 14)))
+                            .foregroundStyle(.primary.opacity(0.5))
+                    }
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text(StellaBrand.introduction)
+                        Text("Stella is possible thanks to the work of Steamac’s developers and Valve’s effort to run Windows games on Linux.\n\nThanks for using Stella!")
+                    }
+                    .font(.system(size: 12).leading(.tight))
+                    .foregroundStyle(.primary.opacity(0.8))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(16)
+                    .frame(maxWidth: 418, alignment: .leading)
+                    .frame(minHeight: 186)
+                    .background {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(Color(white: 0.32).opacity(0.2))
+                    }
+                    .overlay { SettingsSectionEdge(radius: 20, insetOpacity: 0.15).allowsHitTesting(false).accessibilityHidden(true) }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 15)
+                .padding(.bottom, 50)
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+            }
+        }
+    }
+}
+
+/// A noninteractive overlay lets both the native window and SwiftUI sections use the popup rim.
+private final class SettingsEdgeView: NSView {
+    private let edge: StellaCardEdge
+    private let rim = CALayer()
+    private let fixedRadius: CGFloat?
+    private var renderedRadius: CGFloat?
+
+    init(radius: CGFloat? = nil, insetOpacity: CGFloat = 0.25) {
+        edge = StellaCardEdge(insetOpacity: insetOpacity)
+        fixedRadius = radius
+        super.init(frame: .zero)
+        wantsLayer = true
+        rim.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
+        layer?.addSublayer(rim)
+        setAccessibilityElement(false)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func viewDidChangeBackingProperties() { super.viewDidChangeBackingProperties(); needsLayout = true }
+
+    override func layout() {
+        super.layout()
+        guard !bounds.isEmpty else { return }
+        let radius = fixedRadius ?? windowRadius
+        let scale = window?.backingScaleFactor ?? 1
+        guard renderedRadius != radius || rim.contentsScale != scale else { return }
+        // Only the straight edges change length during resizing. Render the original card rim
+        // at display scale once, then stretch its flat middle without resampling the corners.
+        let cap = ceil((radius + 5) * scale)
+        let pixels = Int(2 * cap + 2)
+        guard let context = CGContext(data: nil, width: pixels, height: pixels, bitsPerComponent: 8,
+                                      bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        let tile = CALayer()
+        let side = CGFloat(pixels) / scale
+        tile.bounds = CGRect(x: 0, y: 0, width: side, height: side)
+        tile.cornerRadius = radius
+        tile.cornerCurve = .continuous
+        edge.install(on: tile)
+        edge.fit(to: tile, designScale: 1, backingScale: scale)
+        tile.sublayers?.forEach { $0.displayIfNeeded() }
+        context.scaleBy(x: scale, y: scale)
+        tile.render(in: context)
+        guard let image = context.makeImage() else { return }
+        rim.frame = bounds
+        rim.contentsScale = scale
+        let inset = cap / CGFloat(pixels)
+        rim.contentsCenter = CGRect(x: inset, y: inset, width: 1 - 2 * inset, height: 1 - 2 * inset)
+        rim.contents = image
+        renderedRadius = radius
+    }
+
+    private var windowRadius: CGFloat {
+        if window?.styleMask.contains(.fullScreen) == true { return 0 }
+        if #available(macOS 27, *), let radii = window?.contentView?.effectiveCornerRadii { return radii.topLeft }
+        if #available(macOS 26, *) { return 16 }
+        return 10
+    }
+}
+
+private struct SettingsSectionEdge: NSViewRepresentable {
+    let radius: CGFloat
+    var insetOpacity: CGFloat = 0.25
+    func makeNSView(context: Context) -> SettingsEdgeView { SettingsEdgeView(radius: radius, insetOpacity: insetOpacity) }
+    func updateNSView(_ view: SettingsEdgeView, context: Context) {}
+}
+
+/// The sketch's grouped panels, with native SwiftUI row controls and section semantics.
+private struct SettingsFormStyle: FormStyle {
+    @Environment(\.colorScheme) private var scheme
+
+    func makeBody(configuration: Configuration) -> some View {
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 15) {
+                    ForEach(sections: configuration.content) { section in
+                        VStack(alignment: .leading, spacing: 7) {
+                            section.header.font(.headline)
+                            VStack(spacing: 0) {
+                                ForEach(section.content) { row in
+                                    if row.id != section.content.first?.id { Divider() }
+                                    row
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.vertical, 14)
+                                }
+                            }
+                            .padding(.horizontal, 15)
+                            .background {
+                                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                    .fill(scheme == .dark ? Color(white: 0.135) : Color(nsColor: .controlBackgroundColor))
+                            }
+                            .overlay { SettingsSectionEdge(radius: 20).allowsHitTesting(false).accessibilityHidden(true) }
+                            section.footer.font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+                .padding(.bottom, 12)
+                .padding(.horizontal, geometry.size.width < 600 ? 20 : 40)
+            }
+        }
+    }
+}
+
+private struct SettingsLabeledContentStyle: LabeledContentStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            configuration.label
+            Spacer(minLength: 0)
+            configuration.content
+        }
+    }
+}
+
+private struct SettingsSwitchStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Toggle(isOn: configuration.$isOn) {
+            configuration.label.controlSize(.regular).font(.body)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
     }
 }
 
@@ -322,6 +656,7 @@ private struct Label2: View {
             if let detail { Text(verbatim: detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
             Applies(now: now, key: key)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -491,8 +826,6 @@ private struct GeneralTab: View {
     @EnvironmentObject var settings: LauncherSettings
     @EnvironmentObject var context: SettingsContext
 
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
         Form {
             Section {
@@ -512,11 +845,6 @@ private struct GeneralTab: View {
                 }
                 Toggle(isOn: $settings.openFullscreen) {
                     Label2(title: "Open in full screen", now: false, key: .openFullscreen)
-                }
-            } header: {
-                if let mark = colorScheme == .dark ? StellaBrand.onDark : StellaBrand.onLight {
-                    Image(nsImage: mark).resizable().scaledToFit().frame(height: 17)
-                        .accessibilityLabel(Text(verbatim: "Stella"))
                 }
             }
             Section {
@@ -547,6 +875,10 @@ private struct GeneralTab: View {
                 }
             }
             Section {
+                Toggle(isOn: $settings.discordPresence) {
+                    Label2(title: "Discord Rich Presence",
+                           detail: String(localized: "Show when you’re browsing Steam and how long you’ve been playing your current game in Discord."), now: true)
+                }
                 Toggle(isOn: $settings.shareClipboard) {
                     Label2(title: "Share clipboard with SteamOS",
                            detail: String(localized: "Text and images copied on the Mac can be pasted in SteamOS (Ctrl+V) and the other way round; up to 1 MB of text and 16 MB images. Desktop Mode included."),
@@ -731,6 +1063,11 @@ private struct DisplayTab: View {
                            now: true)
                 }
                 .disabled(!Renderer.superResolutionSupported && !settings.superResolution)
+                Toggle(isOn: $settings.closeOverlayApps) {
+                    Label2(title: "Close overlay apps while Stella runs",
+                           detail: String(localized: "Quit Alcove while using Stella in fullscreen to allow direct display. Reopen it when you leave fullscreen if it was running before."),
+                           now: true)
+                }
             }
         }
     }
@@ -1131,16 +1468,54 @@ private struct SoundTab: View {
 
 // MARK: - Advanced
 
+private struct ResourceValueField: View {
+    let title: LocalizedStringKey
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let step: Int
+    let unit: String
+    @State private var draft = ""
+    @FocusState private var focused: Bool
+
+    private func commit() {
+        if let number = Int(draft), range.contains(number) { value = number }
+        draft = String(value)
+    }
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 3) {
+            HStack {
+                Text(title)
+                Spacer()
+                TextField(title, text: $draft).labelsHidden().multilineTextAlignment(.trailing)
+                    .monospacedDigit().frame(width: unit.isEmpty ? 76 : 136).focused($focused)
+                    .onSubmit(commit)
+                if !unit.isEmpty { Text(verbatim: unit) }
+                Stepper(title, value: $value, in: range, step: step).labelsHidden()
+            }
+            if focused && !(Int(draft).map(range.contains) ?? false) {
+                Text("Enter a value from \(range.lowerBound) to \(range.upperBound).")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .onAppear { draft = String(value) }
+        .onChange(of: draft) {
+            if let number = Int(draft), range.contains(number), value != number { value = number }
+        }
+        .onChange(of: value) { if Int(draft) != value { draft = String(value) } }
+        .onChange(of: focused) { if !focused { commit() } }
+    }
+}
+
 private struct AdvancedTab: View {
     @EnvironmentObject var settings: LauncherSettings
     @EnvironmentObject var context: SettingsContext
+    @State private var managesDrives = false
     @State private var confirmReset = false
     @StateObject private var password = GuestPasswordModel()
     /// The mount point as typed; saved on submit or focus loss, only when valid (never a prefix of it).
     @State private var mountText = ""
     @FocusState private var mountFocused: Bool
-    static let maxCPUs = ProcessInfo.processInfo.activeProcessorCount
-    static let maxGiB = max(4, Int(ProcessInfo.processInfo.physicalMemory >> 30) - 4)
+    static let maxCPUs = min(255, ProcessInfo.processInfo.activeProcessorCount)
     static let host = VMSizing.Host.current
     static let autoCPUs = VMSizing.autoCPUs(host)
     static let autoGiB = VMSizing.autoMemMiB(host) / 1024
@@ -1193,41 +1568,43 @@ private struct AdvancedTab: View {
                     Text("Automatic (\(AdvancedTab.autoCPUs) for this Mac)").tag(true)
                     Text("Custom").tag(false)
                 } label: {
-                    Label2(title: "Virtual CPUs", detail: String(localized: "Automatic: one per performance core of this Mac (2 to 8)."),
+                    Label2(title: "CPU core count", detail: String(localized: "Choose how many virtual CPU cores SteamOS can use."),
                            now: false, key: .cpus)
                 }
                 if settings.cpus > 0 {
-                    Stepper(value: intBinding($settings.cpus, 1...AdvancedTab.maxCPUs), in: 1...AdvancedTab.maxCPUs) {
-                        HStack {
-                            Text("Custom vCPUs")
-                            Spacer()
-                            Text(verbatim: "\(settings.cpus)").monospacedDigit()
-                        }
-                    }
+                    ResourceValueField(title: "Cores", value: $settings.cpus, range: 1...AdvancedTab.maxCPUs,
+                                       step: 1, unit: "")
                     if let warning = VMSizing.cpuWarning(cpus: settings.cpus, host: AdvancedTab.host) {
                         SizeWarning(text: warning)
                     }
                 }
-                Picker(selection: Binding(get: { settings.memMiB == 0 },
-                                          set: { settings.memMiB = $0 ? 0 : min(AdvancedTab.maxGiB, AdvancedTab.autoGiB) * 1024 })) {
-                    Text("Automatic (\(AdvancedTab.autoGiB) GB for this Mac)").tag(true)
-                    Text("Custom").tag(false)
+                Picker(selection: Binding(get: { settings.memoryMode }, set: { settings.memoryMode = $0 })) {
+                    Text("Automatic (\(AdvancedTab.autoGiB) GB for this Mac)").tag(LauncherSettings.MemoryMode.automatic)
+                    Text("Balanced (custom RAM)").tag(LauncherSettings.MemoryMode.balanced)
+                    Text("Advanced").tag(LauncherSettings.MemoryMode.advanced)
                 } label: {
-                    Label2(title: "Memory", detail: String(localized: "Automatic: half of this Mac's RAM (4 to 16 GB). The Mac's GPU memory comes from the same RAM, so the rest stays with macOS and the games' graphics."),
-                           now: false, key: .memMiB)
+                    Label2(title: "Memory", detail: String(localized: "Automatic and Balanced calculate the graphics budget from the RAM available on your Mac."),
+                           now: false, key: .advancedMemory)
                 }
-                Text("GPU budget: \(VMSizing.gpuBudgetMiB(memMiB: settings.memMiB > 0 ? settings.memMiB : AdvancedTab.autoGiB * 1024, host: AdvancedTab.host)) MiB. macOS and driver reserve: \(VMSizing.hostReserveMiB(AdvancedTab.host)) MiB.")
-                    .font(.caption).foregroundStyle(.secondary)
-                if settings.memMiB > 0 {
-                    Stepper(value: Binding(get: { settings.memMiB / 1024 },
-                                           set: { settings.memMiB = min(AdvancedTab.maxGiB, max(2, $0)) * 1024 }),
-                            in: 2...AdvancedTab.maxGiB) {
-                        HStack {
-                            Text("Custom memory")
-                            Spacer()
-                            Text("\(settings.memMiB / 1024) GB").monospacedDigit()
-                        }
+                if settings.advancedMemory {
+                    ResourceValueField(title: "Guest RAM", value: Binding(get: { settings.guestRAMMiB }, set: { settings.advancedRAMMiB = $0 }),
+                                       range: VMSizing.manualRAMMiB, step: 256, unit: "MiB")
+                    ResourceValueField(title: "VRAM budget", value: Binding(get: { settings.graphicsBudgetMiB(for: settings.guestRAMMiB) },
+                                                                          set: { settings.advancedVRAMMiB = $0 }),
+                                       range: VMSizing.manualVRAMMiB, step: 256, unit: "MiB")
+                    Text("Games see up to this much VRAM, limited by the GPU’s available heap size.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    let remaining = Int(AdvancedTab.host.memBytes >> 20) - settings.guestRAMMiB - settings.graphicsBudgetMiB(for: settings.guestRAMMiB)
+                    if remaining < VMSizing.hostReserveMiB(AdvancedTab.host) {
+                        SizeWarning(text: String(localized: "The selected budgets leave less than the recommended reserve for macOS. Lower RAM or VRAM if you experience memory pressure."))
                     }
+                } else {
+                    Text("GPU budget: \(VMSizing.gpuBudgetMiB(memMiB: settings.balancedRAMMiB, host: AdvancedTab.host)) MiB. macOS and driver reserve: \(VMSizing.hostReserveMiB(AdvancedTab.host)) MiB.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if settings.memoryMode == .balanced {
+                    ResourceValueField(title: "Custom memory", value: $settings.memMiB,
+                                       range: VMSizing.manualRAMMiB, step: 1024, unit: "MiB")
                     if let warning = VMSizing.memWarning(memMiB: settings.memMiB, host: AdvancedTab.host) {
                         SizeWarning(text: warning)
                     }
@@ -1319,6 +1696,13 @@ private struct AdvancedTab: View {
                             .disabled(context.compactDisk == nil || context.diskPath == nil || context.diskPath != nextDisk)
                     }
                 }
+                HStack {
+                    Label2(title: "Additional drives", detail: String(localized: "Create a data disk, attach an external drive, or mount a Mac folder."),
+                           now: false, key: .additionalDrives)
+                    Spacer()
+                    Button("Manage Drives…") { managesDrives = true }
+                }
+                .sheet(isPresented: $managesDrives) { DriveManager(settings: settings) }
                 VStack(alignment: .leading, spacing: 6) {
                     Label2(title: "Shared folder",
                            detail: String(localized: "A Mac folder SteamOS reads and writes in place (virtio-fs, no copy), mounted at the path below on every boot. Games stored there load at the Mac disk's speed. Security: virtio-fs does not confine SteamOS to this folder; with a share set, root in SteamOS can potentially read anything your Mac user can. Share only with a SteamOS you trust."),

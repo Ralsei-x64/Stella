@@ -14,6 +14,10 @@ struct GameProfile: Codable, Equatable {
     var gpuVendor: GPUVendor?
     var env = ""
     var isDefault: Bool { gfx == nil && driver == nil && gpuVendor == nil && env.isEmpty }
+    var microphoneAllowed: Bool {
+        get { option("STEAMAC_DISABLE_MIC") != "1" }
+        set { setOption("STEAMAC_DISABLE_MIC", to: newValue ? nil : "1") }
+    }
 
     init(gfx: String? = nil, driver: String? = nil, env: String = "", gpuVendor: GPUVendor? = nil) {
         self.gfx = gfx
@@ -110,6 +114,13 @@ struct GameProfile: Codable, Equatable {
         }
         edited.setOption("VKD3D_DISABLE_EXTENSIONS", to: nil)
         if edited.option("VKD3D_DISABLE_EXTENSIONS") != nil { failures.append("profiles: empty and inherited are distinct") }
+        let original = edited
+        edited.microphoneAllowed = false
+        if edited.microphoneAllowed || !edited.guestEnv.contains("STEAMAC_DISABLE_MIC=1") {
+            failures.append("profiles: disabling microphone did not reach the guest")
+        }
+        edited.microphoneAllowed = true
+        if edited != original { failures.append("profiles: restoring microphone changed other launch options") }
         let shader66 = "VKD3D_DISABLE_EXTENSIONS= VKD3D_SHADER_MODEL=6_6"
         let titleProfiles: [(Int, [GameProfile])] = [
             (1237970, [GameProfile(gfx: "dxmt", driver: "kosmickrisp"),

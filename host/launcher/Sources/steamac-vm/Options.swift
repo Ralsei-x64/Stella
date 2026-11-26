@@ -3,6 +3,7 @@ import Foundation
 struct DiskSpec {
     var path: String
     var readOnly: Bool
+    var serial: String?
 }
 
 enum MouseMode: String {
@@ -23,6 +24,8 @@ struct Options {
     var initrd: String?
     var cmdline = "console=hvc0 loglevel=4 rootwait"
     var disks: [DiskSpec] = []
+    var driveShares: [(tag: String, path: String, readOnly: Bool)] = []
+    var physicalDrives: [AdditionalDrive] = []
     /// --share DIR / Settings > Advanced "Shared folder": a Mac folder exposed to the guest as the
     /// virtio-fs device tagged `Options.shareTag` (VM.init). nil = no share.
     var share: String?
@@ -549,6 +552,7 @@ struct Options {
             AppBundle.fill(&o, settings: settings, overrides: &overrides)
             Provision.attachPending(&o)
             Provision.attachConfig(&o)
+            AdditionalDrive.attach(settings.additionalDrives, to: &o)
             let words = o.cmdline.split(separator: " ")
             func add(_ key: String, _ value: @autoclosure () -> String?) {
                 guard !words.contains(where: { $0.hasPrefix(key + "=") }), let v = value() else { return }
@@ -561,7 +565,11 @@ struct Options {
             add("steamac.ssh", o.sshPort == 0 ? "0" : "1")
             add("steamac.steam_client", o.steamClient.rawValue)
             add("steamac.gfx", o.wmtrLibrary == nil ? "vulkan" : "dxmt")
-            add("steamac.gpu_mib", String(VMSizing.gpuBudgetMiB(memMiB: o.memMiB)))
+            if let gpuFlag = words.last(where: { $0.hasPrefix("steamac.gpu_mib=") }) {
+                overrides[.advancedVRAMMiB] = "--cmdline " + gpuFlag
+                if o.explicit.contains("--mem") { overrides[.advancedMemory] = "--mem / --cmdline" }
+            }
+            add("steamac.gpu_mib", String(settings.graphicsBudgetMiB(for: o.memMiB)))
             add("steamac.share", o.share == nil ? nil : o.shareMount)
             add("steamac.share_library", o.share != nil && o.shareLibrary ? "1" : nil)
             if o.macTime {
@@ -593,13 +601,11 @@ struct Options {
         }
         if given("--mem") {
             ov[.memMiB] = "--mem \(memMiB)"
+            ov[.advancedRAMMiB] = ov[.memMiB]
             memSource = .flag
-        } else if s.memMiB > 0 {
-            memMiB = max(1024, s.memMiB)
-            memSource = .settings
         } else {
-            memMiB = VMSizing.autoMemMiB(.current)
-            memSource = .auto
+            memMiB = s.guestRAMMiB
+            memSource = s.memoryMode == .automatic ? .auto : .settings
         }
         if given("--no-ssh") {
             ov[.sshEnabled] = "--no-ssh"
@@ -682,7 +688,10 @@ struct Options {
         if noCrashReports {
             ov[.sendCrashReports] = explicit.contains(CrashReporting.noFlag) ? CrashReporting.noFlag : "\(CrashReporting.disableEnv)=0"
         }
-        if !disks.isEmpty { ov[.diskImage] = "--disk \(disks[0].path)" }
+        if !disks.isEmpty {
+            ov[.diskImage] = "--disk \(disks[0].path)"
+            ov[.additionalDrives] = "--disk"
+        }
         return ov
     }
 
@@ -690,12 +699,14 @@ struct Options {
         guard !isSelftest, !needsDisk, !sentryTestEvent, sentryTestCrash == nil else { return }
         guard !kernel.isEmpty else { throw OptionError("--kernel is required") }
         guard (1...255).contains(cpus) else { throw OptionError("--cpus must be 1..255") }
-        guard memMiB >= 256 else { throw OptionError("--mem must be >= 256") }
+        guard VMSizing.manualRAMMiB.contains(memMiB) else {
+            throw OptionError("--mem must be a positive MiB count that fits in 32 bits")
+        }
         let gpuWords = cmdline.split(separator: " ").filter { $0.hasPrefix("steamac.gpu_mib=") }
         if !gpuWords.isEmpty {
             guard gpuWords.count == 1, let value = Int(gpuWords[0].dropFirst("steamac.gpu_mib=".count)),
-                  (256...16384).contains(value) else {
-                throw OptionError("steamac.gpu_mib must occur once and be 256..16384 MiB")
+                  VMSizing.manualVRAMMiB.contains(value) else {
+                throw OptionError("steamac.gpu_mib must occur once and be a positive MiB count representable in Vulkan bytes")
             }
         }
         guard sshPort == 0 || (1024...65535).contains(sshPort) else {

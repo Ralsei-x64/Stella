@@ -15,11 +15,11 @@ diff --git a/src/venus/vkr_physical_device.c b/src/venus/vkr_physical_device.c
 +vkr_physical_device_limit_memory(struct vkr_physical_device *physical_dev)
 +{
 +   const char *value = getenv("VKR_GPU_BUDGET_MIB");
-+   if (!value || !*value)
++   if (!value || *value < '0' || *value > '9')
 +      return;
 +   char *end;
-+   const unsigned long mib = strtoul(value, &end, 10);
-+   if (*end || mib < 256 || mib > 16384)
++   const unsigned long long mib = strtoull(value, &end, 10);
++   if (*end || !mib || mib > (UINT64_MAX >> 20))
 +      return;
 +
 +   VkPhysicalDeviceMemoryProperties *props = &physical_dev->memory_properties;

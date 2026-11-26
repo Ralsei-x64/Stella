@@ -332,7 +332,7 @@ enum CrashOffer {
     static func run(status: Int32, options: Options, runDir: String) {
         let summary = CrashReporting.exitSummary(status: status)
         log("report: offering a problem report (\(summary))")
-        let app = NSApplication.shared
+        let app = SteamacApplication.shared
         app.setActivationPolicy(.regular)
         app.delegate = delegate
         MainMenu.installMinimal()

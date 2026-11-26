@@ -94,6 +94,7 @@ struct GameCompatibilityEditor: View {
             }.padding(16)
         }
         .frame(width: 540, height: 590)
+        .onAppear { recommendations.fetch(game.appid) }
         .alert("Allow DXMT?", isPresented: $showSecurity) {
             Button("Allow DXMT") { settings.wmtr = true }
             Button("Cancel", role: .cancel) {}
@@ -149,7 +150,7 @@ struct GameCompatibilityEditor: View {
                                                  ("fps,frametimes", String(localized: "Frame rate and frame times"))])
         }
         Section {
-            option("Microphone", "STEAMAC_DISABLE_MIC", [("1", String(localized: "Disable for this game"))])
+            Toggle("Allow microphone access", isOn: $draft.microphoneAllowed)
             option("Proton log", "PROTON_LOG", [("1", String(localized: "Write log"))])
         } footer: {
             Text("Disable the microphone for games that stall when opening voice input. Proton writes its launch log to the SteamOS home folder.")
@@ -182,6 +183,7 @@ struct GameCompatibilityEditor: View {
                     Button("Use recommendation") {
                         var suggested = row.profile
                         suggested.gpuVendor = draft.gpuVendor
+                        suggested.microphoneAllowed = draft.microphoneAllowed
                         draft = suggested
                     }.disabled(!row.usable)
                 }

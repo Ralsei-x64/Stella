@@ -180,6 +180,7 @@ enum PointerSelfTest {
             let (wc, progress) = controller(points: CGSize(width: 1200, height: 750), scale: 1)
             let game = CAMetalLayer()
             game.frame = wc.view.bounds
+            game.drawableSize = CGSize(width: 1200, height: 750)
             game.isOpaque = true
             game.isHidden = true   // wmtr attaches hidden while Steam has focus
             wc.view.metalLayer.addSublayer(game)

@@ -1,0 +1,154 @@
+Subject: [PATCH] macos: support virtio-fs on volumes without volfs inode paths
+
+exFAT can return valid stat information for an entry while /.vol/dev/ino
+returns ENOENT. Hold a vnode reference for each active lookup on these
+volumes, resolve its current path for operations, and release it with the
+FUSE inode. Filesystems with native inode paths retain their existing fast path.
+
+diff --git a/src/devices/src/virtio/fs/macos/passthrough.rs b/src/devices/src/virtio/fs/macos/passthrough.rs
+index 16d5bbb..03b3fee 100644
+--- a/src/devices/src/virtio/fs/macos/passthrough.rs
++++ b/src/devices/src/virtio/fs/macos/passthrough.rs
+@@ -56,6 +56,56 @@ struct InodeData {
+     dev: i32,
+     refcount: AtomicU64,
+     unlinked_fd: AtomicI64,
++    // File systems without volfs inode paths (e.g. exFAT) need a vnode reference
++    // to find the current path after a guest or Finder rename.
++    path_fd: Option<File>,
++}
++
++impl InodeData {
++    fn volfs_path(dev: i32, ino: u64) -> CString {
++        CString::new(format!("/.vol/{dev}/{ino}")).unwrap()
++    }
++
++    fn supports_volfs(st: &bindings::stat64) -> bool {
++        let path = Self::volfs_path(st.st_dev, st.st_ino);
++        let mut found = MaybeUninit::<bindings::stat64>::zeroed();
++        // Check the identity as well as existence before relying on the alias.
++        if unsafe { libc::lstat(path.as_ptr(), found.as_mut_ptr()) } != 0 {
++            return false;
++        }
++        let found = unsafe { found.assume_init() };
++        found.st_dev == st.st_dev && found.st_ino == st.st_ino
++    }
++
++    fn path(&self) -> io::Result<CString> {
++        let Some(file) = &self.path_fd else {
++            return Ok(Self::volfs_path(self.dev, self.ino));
++        };
++        let mut buf = [0 as libc::c_char; libc::MAXPATHLEN as usize];
++        if unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETPATH, buf.as_mut_ptr()) } < 0 {
++            return Err(linux_error(io::Error::last_os_error()));
++        }
++        Ok(unsafe { CStr::from_ptr(buf.as_ptr()) }.to_owned())
++    }
++
++    fn remember_path(path: &CStr, st: &bindings::stat64) -> io::Result<File> {
++        // O_SYMLINK holds the link itself. O_EVTONLY also works for directories
++        // and files that the user may stat but cannot open for reading.
++        let fd = unsafe { libc::open(path.as_ptr(), libc::O_EVTONLY | libc::O_SYMLINK | libc::O_CLOEXEC) };
++        if fd < 0 {
++            return Err(linux_error(io::Error::last_os_error()));
++        }
++        let file = unsafe { File::from_raw_fd(fd) };
++        let mut actual = MaybeUninit::<bindings::stat64>::zeroed();
++        if unsafe { libc::fstat(fd, actual.as_mut_ptr()) } != 0 {
++            return Err(linux_error(io::Error::last_os_error()));
++        }
++        let actual = unsafe { actual.assume_init() };
++        if actual.st_dev != st.st_dev || actual.st_ino != st.st_ino {
++            return Err(linux_error(io::Error::from_raw_os_error(libc::ESTALE)));
++        }
++        Ok(file)
++    }
+ }
+ 
+ enum InodeHandle {
+@@ -702,10 +752,6 @@ impl PassthroughFs {
+             .cloned()
+             .ok_or_else(ebadf)?;
+ 
+-        let cstr =
+-            CString::new(format!("/.vol/{}/{}", data.dev, data.ino)).map_err(|_| einval())?;
+-        debug!("inode_to_handle: path={}", cstr.to_string_lossy());
+-
+         if supports_fd {
+             let unlinked_fd = data.unlinked_fd.load(Ordering::Acquire);
+             if unlinked_fd >= 0 {
+@@ -713,7 +759,7 @@ impl PassthroughFs {
+             }
+         }
+ 
+-        Ok(InodeHandle::Path(cstr))
++        Ok(InodeHandle::Path(data.path()?))
+     }
+ 
+     fn name_to_path(&self, parent: Inode, name: &CStr) -> io::Result<CString> {
+@@ -730,13 +776,10 @@ impl PassthroughFs {
+             .cloned()
+             .ok_or_else(ebadf)?;
+ 
+-        let cstr = CString::new(format!(
+-            "/.vol/{}/{}/{}",
+-            data.dev,
+-            data.ino,
+-            name.to_string_lossy()
+-        ))
+-        .map_err(|_| einval())?;
++        let mut bytes = data.path()?.into_bytes();
++        bytes.push(b'/');
++        bytes.extend_from_slice(name.to_bytes());
++        let cstr = CString::new(bytes).map_err(|_| einval())?;
+         debug!("name_to_path: path={}", cstr.to_string_lossy());
+         Ok(cstr)
+     }
+@@ -1374,6 +1417,7 @@ impl FileSystem for PassthroughFs {
+                 inode: fuse::ROOT_ID,
+                 ino: st.st_ino,
+                 dev: st.st_dev,
++                path_fd: if InodeData::supports_volfs(&st) { None } else { Some(f) },
+                 refcount: AtomicU64::new(2),
+                 unlinked_fd: AtomicI64::new(-1),
+             }),
+@@ -1456,6 +1500,16 @@ impl FileSystem for PassthroughFs {
+             // There is a possible race here where 2 threads end up adding the same file
+             // into the inode list.  However, since each of those will get a unique Inode
+             // value and unique file descriptors this shouldn't be that much of a problem.
++            let needs_path = if st.st_dev == parent_data.dev {
++                parent_data.path_fd.is_some()
++            } else {
++                !InodeData::supports_volfs(&st)
++            };
++            let path_fd = if needs_path {
++                Some(InodeData::remember_path(&c_path, &st)?)
++            } else {
++                None
++            };
+             let inode = self.inode_alloc.next();
+             self.inodes.write().unwrap().insert(
+                 inode,
+@@ -1467,6 +1521,7 @@ impl FileSystem for PassthroughFs {
+                     inode,
+                     ino: st.st_ino,
+                     dev: st.st_dev,
++                    path_fd,
+                     refcount: AtomicU64::new(1),
+                     unlinked_fd: AtomicI64::new(-1),
+                 }),
+diff --git a/src/devices/src/virtio/linux_errno.rs b/src/devices/src/virtio/linux_errno.rs
+index 105f977..6f5062b 100644
+--- a/src/devices/src/virtio/linux_errno.rs
++++ b/src/devices/src/virtio/linux_errno.rs
+@@ -177,6 +177,10 @@ pub fn linux_errno_raw(errno: i32) -> i32 {
+         libc::ENOSTR => LINUX_ENOSTR,
+         libc::EPROTO => LINUX_EPROTO,
+         libc::ETIME => LINUX_ETIME,
++        // Darwin file systems return ENOTSUP for unsupported operations such as
++        // exclusive rename on exFAT. Darwin's socket EOPNOTSUPP is distinct.
++        #[cfg(target_os = "macos")]
++        libc::ENOTSUP => LINUX_EOPNOTSUPP,
+         libc::EOPNOTSUPP => LINUX_EOPNOTSUPP,
+         libc::ENOTRECOVERABLE => LINUX_ENOTRECOVERABLE,
+         libc::EOWNERDEAD => LINUX_EOWNERDEAD,

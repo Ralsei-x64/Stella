@@ -145,6 +145,19 @@ def register_library(steam_root, mount):
 
 def main():
     args = dict(part.split("=", 1) for part in Path(os.environ.get("STEAMAC_CMDLINE", "/proc/cmdline")).read_text().split() if "=" in part)
+    steam_root = Path(os.environ.get("STEAMAC_STEAM_ROOT", str(Path.home() / ".local/share/Steam")))
+    for record in args.get("stella.drives", "").split(","):
+        image = re.fullmatch(r"i:([0-9a-f-]{36}):([A-Za-z0-9-]{1,31})", record)
+        if not image:
+            continue
+        mount = Path("/run/media/stella") / image[2]
+        check = subprocess.run(["findmnt", "-nr", "--mountpoint", str(mount), "-t", "ext4", "-o", "UUID"],
+                               capture_output=True, text=True)
+        if check.returncode == 0 and check.stdout.strip() == image[1]:
+            try:
+                register_library(steam_root, mount)
+            except (OSError, ValueError) as error:
+                log(f"could not register {mount}: {error}")
     share = args.get("steamac.share", "")
     if args.get("steamac.share_library") != "1" or not share:
         return
@@ -155,7 +168,6 @@ def main():
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
     if mounted.returncode:
         return
-    steam_root = Path(os.environ.get("STEAMAC_STEAM_ROOT", str(Path.home() / ".local/share/Steam")))
     register_library(steam_root, Path(share))
 
 

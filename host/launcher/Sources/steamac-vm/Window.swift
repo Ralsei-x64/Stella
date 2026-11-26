@@ -11,6 +11,13 @@ import QuartzCore
 final class SteamacApplication: NSApplication {
     weak var router: WindowController?
 
+    override init() {
+        super.init()
+        appearance = NSAppearance(named: .darkAqua)
+    }
+
+    required init?(coder: NSCoder) { super.init(coder: coder) }
+
     override func sendEvent(_ event: NSEvent) {
         if let router, router.handleKeyEvent(event) { return }
         super.sendEvent(event)
@@ -324,7 +331,10 @@ final class WindowController: NSObject, NSWindowDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + WindowController.guestResizeDebounce, execute: work)
     }
 
-    func windowDidChangeScreen(_ notification: Notification) { scheduleGuestResize() }
+    func windowDidChangeScreen(_ notification: Notification) {
+        view.updatePresentationSize()
+        scheduleGuestResize()
+    }
     func windowDidChangeBackingProperties(_ notification: Notification) { scheduleGuestResize() }
 
     func windowDidEndLiveResize(_ notification: Notification) { scheduleGuestResize() }
@@ -339,11 +349,13 @@ final class WindowController: NSObject, NSWindowDelegate {
     func windowWillExitFullScreen(_ notification: Notification) { inFullScreenTransition = true }
     func windowDidEnterFullScreen(_ notification: Notification) {
         inFullScreenTransition = false
+        view.updatePresentationSize()
         scheduleGuestResize()
         refreshHostCursor()
     }
     func windowDidExitFullScreen(_ notification: Notification) {
         inFullScreenTransition = false
+        view.updatePresentationSize()
         scheduleGuestResize()
         refreshHostCursor()
         if let done = onDidExitFullScreen {

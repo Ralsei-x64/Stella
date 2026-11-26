@@ -47,9 +47,29 @@ static NTSTATUS call(struct wmtr_host *h, uint16_t n, void *params, uint32_t siz
   memcpy(record+off, params, size); execute(h, record, off+size);
   memcpy(params, h->slots[0].data, size); return h->slots[0].status;
 }
+/* Repeated export/release of short-lived graphics resources must leave empty slots
+ * to terminate lookups. Hold a real object across compaction to check its lifetime. */
+static void check_object_churn(struct wmtr_host *h) {
+  struct unixcall_generic_obj_ret held = {0};
+  CHECK(call(h, 4, &held, sizeof held) == 0);
+  uint32_t capacity = h->object_capacity;
+  struct object_walk export = { .h = h, .mode = OBJECT_EXPORT, .call = 4 };
+  for (uint32_t i = 0; i < capacity * 2; i++) {
+    uint64_t transient = (1ull << 32) + (uint64_t)i * 16;
+    CHECK(object_field(&export, &transient));
+    object_drop(h, transient, 0);
+  }
+  uint32_t empty = 0;
+  for (uint32_t i = 0; i < h->object_capacity; i++) empty += !h->objects[i].value;
+  CHECK(h->object_capacity == capacity && empty >= capacity / 4);
+  struct object_entry *entry = object_find(h, held.ret, 0);
+  CHECK(h->object_count == 1 && entry && entry->refs == 1);
+  CHECK(call(h, 1, &held.ret, sizeof held.ret) == 0 && h->object_count == 0);
+}
 int main(void) { @autoreleasepool {
   setenv("WMTR_TEST_STRICT_OBJECTS", "1", 1);
   struct wmtr_host *a=new_host(), *b=new_host(); CHECK(a && b);
+  check_object_churn(a);
   struct unixcall_generic_obj_uint64_ret color={WMTColorSpaceHDR10,0};
   CHECK(call(a,92,&color,sizeof color)==0 && color.ret==42); /* enum, not an object handle */
   struct unixcall_generic_obj_ret pa={0}, pb={0}, oa={0}, ob={0};

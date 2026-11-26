@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import IOKit
 import QuartzCore
@@ -304,6 +305,18 @@ final class GameSessionTracker {
     /// The game frames and play time are counted for, and since when (CACurrentMediaTime).
     private var activeGame: Int?
     private var activeSince: CFTimeInterval = 0
+    private var steamFocused = false
+    struct SessionActivity: Equatable {
+        enum Location: Equatable {
+            case game(Int)
+            case steamLibrary
+        }
+        let location: Location
+        /// Shift the start forward on resume so the Discord timer counts actual play time.
+        let since: Date
+    }
+    @Published private(set) var sessionActivity: SessionActivity?
+
     /// The whole VM is paused (suspend, guest sleep).
     var vmPaused = false { didSet { if vmPaused != oldValue { updateActivity() } } }
 
@@ -330,6 +343,7 @@ final class GameSessionTracker {
     }
 
     private func focus(_ f: GuestFocus) {
+        steamFocused = (f == .steam)
         switch f {
         case .game(let id) where GameSessionTracker.isSteamApp(id):
             // An agent without lifecycle lines: a game focused after another one replaced it.
@@ -388,17 +402,26 @@ final class GameSessionTracker {
     private func updateActivity() {
         let now = CACurrentMediaTime()
         let want = focused.flatMap { id in id != frozen && !vmPaused && live[id] != nil ? id : nil }
-        guard want != activeGame else { return }
-        let counted = FrameMeter.shared.set(active: want != nil)
-        if let id = activeGame, live[id] != nil {
-            live[id]?.frames.merge(counted)
-            live[id]?.playS += now - activeSince
+        if want != activeGame {
+            let counted = FrameMeter.shared.set(active: want != nil)
+            if let id = activeGame, live[id] != nil {
+                live[id]?.frames.merge(counted)
+                live[id]?.playS += now - activeSince
+            }
+            activeGame = want
+            activeSince = now
         }
-        activeGame = want
-        activeSince = now
+
+        let location = want.map(SessionActivity.Location.game) ?? (steamFocused && !vmPaused ? .steamLibrary : nil)
+        guard location != sessionActivity?.location else { return }
+        let played = want.flatMap { live[$0]?.playS } ?? 0
+        sessionActivity = location.map { SessionActivity(location: $0, since: Date().addingTimeInterval(-played)) }
     }
 
     private func endAll(_ how: GameSessionReport.End) {
+        steamFocused = false
+        focused = nil
+        updateActivity()
         for id in live.keys.sorted() { end(id, how) }
     }
 

@@ -55,6 +55,7 @@
 # never rewritten in place: a running VM may have the dylib mapped.
 set -eu
 
+# Patch 0026 resolves files on shared exFAT volumes that lack volfs inode paths.
 REPO=https://github.com/libkrun/libkrun.git
 TAG=v1.19.6
 COMMIT=227b2de6ed323fe180e02f871c5f325a90c13cc2

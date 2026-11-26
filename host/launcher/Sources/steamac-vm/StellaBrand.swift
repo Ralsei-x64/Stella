@@ -6,6 +6,7 @@ import SwiftUI
 
 /// Vector assets and the background shared by Stella’s full-window screens.
 enum StellaBrand {
+    static let introduction: LocalizedStringResource = "Stella seeks to run your Steam games on your Mac with minimal hassle.\n\nStella works by running a SteamOS ARM microVM that has access to your Mac’s graphics capabilities to provide near-native graphics performance."
     static let silver = Bundle.module.url(forResource: "WordmarkSilver", withExtension: "pdf", subdirectory: "Brand")
     static let verboseWordmark = Bundle.module.url(forResource: "VerboseWordmark", withExtension: "pdf", subdirectory: "Brand")
     static let onDark = silver.flatMap(NSImage.init(contentsOf:))
@@ -262,10 +263,32 @@ final class StellaCardSurface: NSVisualEffectView {
     }
 }
 
-/// The status boxes share a translucent gradient, two short inset highlights and a foreground stroke.
-final class StellaStatusCardLayer: CAGradientLayer {
+/// The black rim sits above both inset highlights, on the same pixel-aligned contour.
+struct StellaCardEdge {
     private let inset = StellaInsetLayer()
     private let outline = StellaBorderLayer()
+
+    init(insetOpacity: CGFloat = 0.25) {
+        inset.insetColor = OverlayView.color(0xffffff, insetOpacity)
+    }
+
+    func install(on surface: CALayer) {
+        inset.cornerCurve = surface.cornerCurve
+        surface.addSublayer(inset)
+        outline.zPosition = 1
+        surface.addSublayer(outline)
+    }
+
+    func fit(to surface: CALayer, designScale k: CGFloat, backingScale scale: CGFloat) {
+        outline.fit(to: surface, width: k, scale: scale)
+        inset.fit(surface.bounds, corner: surface.cornerRadius, offset: 2 * k, blur: k, scale: scale,
+                  clipInset: outline.lineWidth)
+    }
+}
+
+/// The status boxes share a translucent gradient, two short inset highlights and a foreground stroke.
+final class StellaStatusCardLayer: CAGradientLayer {
+    private let edge = StellaCardEdge()
 
     override init() {
         super.init()
@@ -275,10 +298,7 @@ final class StellaStatusCardLayer: CAGradientLayer {
         endPoint = CGPoint(x: 1.17, y: 0.67)
         masksToBounds = true
         cornerCurve = .continuous
-        inset.cornerCurve = .continuous
-        addSublayer(inset)
-        outline.zPosition = 1
-        addSublayer(outline)
+        edge.install(on: self)
     }
 
     override init(layer: Any) { super.init(layer: layer) }
@@ -291,8 +311,7 @@ final class StellaStatusCardLayer: CAGradientLayer {
         frame = StellaBorderLayer.alignedFrame(rect, scale: scale)
         contentsScale = scale
         cornerRadius = 30 * k
-        outline.fit(to: self, width: k, scale: scale)
-        inset.fit(bounds, corner: cornerRadius, offset: 2 * k, blur: k, scale: scale, clipInset: outline.lineWidth)
+        edge.fit(to: self, designScale: k, backingScale: scale)
     }
 }
 

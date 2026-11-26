@@ -31,6 +31,11 @@ enum VMSizing {
         case auto = "automatic", settings = "Settings", flag = "command line"
     }
 
+    // libkrun takes RAM as a UInt32 in MiB. Vulkan stores heap sizes as UInt64 bytes.
+    static let manualRAMMiB = 1...Int(UInt32.max)
+    static let manualVRAMMiB = 1...Int(UInt64.max >> 20)
+    private static let autoGPU = 256...16384
+
     static let minAutoMemMiB = 4096, maxAutoMemMiB = 16384
     /// Fewer than 4 vCPUs leave Steam's UI loading for minutes (STEAMAC-2K: 2 vCPUs on a 12-core Mac).
     static let minAutoCPUs = 4, maxAutoCPUs = 8
@@ -44,8 +49,9 @@ enum VMSizing {
     /// an advertised working-set budget, not an allocation cap: Venus allocations are
     /// asynchronous, so rejecting them here would kill the guest context, not return OOM.
     static func gpuBudgetMiB(memMiB: Int, host: Host = .current) -> Int {
-        let remaining = Int(host.memBytes >> 20) - memMiB - hostReserveMiB(host)
-        return min(16384, max(256, remaining / 256 * 256))
+        let available = max(0, Int(host.memBytes >> 20) - hostReserveMiB(host))
+        let remaining = max(0, available - max(0, memMiB))
+        return min(autoGPU.upperBound, max(autoGPU.lowerBound, remaining / 256 * 256))
     }
 
     /// Half the Mac's RAM, rounded to whole GiB, 4...16 GiB: 8 GB Mac → 4 GiB, 16 → 8, 32 and up → 16.
@@ -71,7 +77,7 @@ enum VMSizing {
     static func memWarning(memMiB: Int, host: Host) -> String? {
         let gpu = gpuBudgetMiB(memMiB: memMiB, host: host)
         let reserve = hostReserveMiB(host)
-        guard memMiB + gpu + reserve > Int(host.memBytes >> 20) || gpu < 2048 else { return nil }
+        guard memMiB > Int(host.memBytes >> 20) - gpu - reserve || gpu < 2048 else { return nil }
         return String(localized: "\(memMiB) MiB VM RAM + \(gpu) MiB GPU budget + \(reserve) MiB reserved for macOS on this \(host.memGiB) GB Mac. Too little GPU memory remains: lower VM memory or graphics settings to avoid swapping, out-of-memory errors or the VM being killed.")
     }
 

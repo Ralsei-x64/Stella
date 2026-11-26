@@ -192,6 +192,7 @@ enum Supervisor {
             let vmExit = spawnAndWait(exe, CommandLine.arguments, env)
             let status = vmExit.status
             childPid = 0
+            FullscreenOverlayApps.restoreAfterVMExit(directory: dir)
             if var t = savedTermios { tcsetattr(STDIN_FILENO, TCSANOW, &t) }
             remotePlay?.stop()
             remotePlay = nil
