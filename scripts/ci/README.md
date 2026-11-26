@@ -1,6 +1,6 @@
 # Apple Silicon DMGs
 
-Every push to `stella`, every `v*` tag, and manual runs of **Apple Silicon DMG** build Stella on a hosted Apple Silicon Mac. Open a completed run and download the DMG under **Artifacts**. The image contains the ad-hoc-signed app and a shortcut to Applications. Apple notarization is a separate release step.
+Every push to `stella`, every `v*` tag, and manual runs of **Apple Silicon DMG** build Stella on a hosted Apple Silicon Mac. Successful builds of `stella` update the [continuous release](https://github.com/Ralsei-x64/Stella/releases/tag/continuous). A version tag publishes a separate release. Manual builds on other branches are available under **Artifacts** in their workflow runs. The image contains the ad-hoc-signed app and a shortcut to Applications. Apple notarization is a separate release step.
 
 The job compiles the current Swift launcher, bundled resources, translations, and app icon. It uses the tested VM libraries and guest images pinned in `runtime.env`. It checks the archive hash, compares the runtime source fingerprint to the checkout, and mounts the finished DMG to check the ARM64 executable, signature, and hypervisor entitlement. The SteamOS disk is downloaded during setup.
 

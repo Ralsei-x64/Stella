@@ -2,7 +2,7 @@
 
 Stella lets you play games from your Steam library in SteamOS on an Apple silicon Mac running macOS 15 or later. You can play in a window or go fullscreen on your chosen monitor. Stella is a fork of [FX Steam Launcher](https://github.com/fxgl/steamac).
 
-Download the DMG from **Artifacts** in the latest successful [Apple Silicon build](https://github.com/Ralsei-x64/Stella/actions/workflows/apple-silicon-dmg.yml).
+Download the [latest Apple Silicon DMG](https://github.com/Ralsei-x64/Stella/releases/download/continuous/Stella-arm64.dmg).
 
 ## How it works
 
